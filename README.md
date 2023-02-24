@@ -1,6 +1,6 @@
-# timewheel
+# Cronjob
 
-golang实现的时间轮定时任务，目前支持 @every 1 second|minute|hour|day|month|week
+基于时间轮实现的定时任务，目前支持 @every 1 second|minute|hour|day|month|week
 
 # Install
 
