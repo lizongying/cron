@@ -10,11 +10,11 @@ func main() {
 	var logger cron.Logger
 	logger = log.New(os.Stdout, "", log.Ldate|log.Ltime|log.Lshortfile)
 
-	//t := cron.NewTimeWheel(cron.WithIntervalSecond(), cron.WithLoggerStdout())
-	t := cron.NewCron()
+	t := cron.NewCron(cron.WithIntervalSecond(), cron.WithLoggerStdout())
+	//t := cron.NewCron()
 
 	job := cron.Job{
-		Spec: "@every 1 minutes",
+		Spec: "@every 1 seconds",
 		Id:   1,
 		Meta: nil,
 		Callback: func(id int, meta any) {
