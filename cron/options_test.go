@@ -7,18 +7,18 @@ import (
 )
 
 func TestWithSecond(t *testing.T) {
-	tw := Newcron(WithIntervalSecond())
+	tw := New(WithIntervalSecond())
 	t.Logf("%+v", tw)
 }
 
 func TestWithMinute(t *testing.T) {
-	tw := Newcron(WithIntervalMinute())
+	tw := New(WithIntervalMinute())
 	t.Logf("%+v", tw)
 }
 
 func TestWithLogger(t *testing.T) {
 	var logger Logger
 	logger = log.New(os.Stdout, "", log.Ldate|log.Ltime|log.Lshortfile)
-	tw := Newcron(WithLogger(logger))
+	tw := New(WithLogger(logger))
 	t.Logf("%+v", tw)
 }
