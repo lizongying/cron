@@ -11,14 +11,14 @@ type Options func(t *cron)
 func WithIntervalSecond() Options {
 	return func(t *cron) {
 		t.interval = time.Second
-		t.slotCount = 1 << 29
+		t.slotCount = 60 * 60 * 24 * 366
 	}
 }
 
 func WithIntervalMinute() Options {
 	return func(t *cron) {
 		t.interval = time.Minute
-		t.slotCount = 1 << 23
+		t.slotCount = 60 * 24 * 366
 	}
 }
 

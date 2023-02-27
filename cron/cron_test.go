@@ -2,15 +2,16 @@ package cron
 
 import (
 	"testing"
+	"time"
 )
 
-func TestNewCron(t *testing.T) {
-	tw := NewCron()
+func TestNew(t *testing.T) {
+	tw := New()
 	t.Logf("%+v", tw)
 }
 
 func TestCron_AddJobCallbackNil(t *testing.T) {
-	tw := NewCron()
+	tw := New()
 	job := Job{
 		Spec: "@every 2 seconds",
 		Id:   0,
@@ -24,12 +25,12 @@ func TestCron_AddJobCallbackNil(t *testing.T) {
 }
 
 func TestCron_AddJobIdNil(t *testing.T) {
-	tw := NewCron()
+	tw := New()
 	job := Job{
 		Spec: "@every 2 seconds",
 		Meta: nil,
-		Callback: func(id int, meta any) {
-			t.Log(id, meta)
+		Callback: func(id int, meta any, now time.Time) {
+			t.Log(id, meta, now)
 		},
 	}
 	err := tw.AddJob(&job)
@@ -41,13 +42,13 @@ func TestCron_AddJobIdNil(t *testing.T) {
 
 func TestCron_AddJobExists(t *testing.T) {
 	var err error
-	tw := NewCron()
+	tw := New()
 	job := Job{
 		Spec: "@every 2 seconds",
 		Id:   0,
 		Meta: nil,
-		Callback: func(id int, meta any) {
-			t.Log(id, meta)
+		Callback: func(id int, meta any, now time.Time) {
+			t.Log(id, meta, now)
 		},
 	}
 	err = tw.AddJob(&job)
@@ -64,13 +65,13 @@ func TestCron_AddJobExists(t *testing.T) {
 }
 
 func TestCron_AddJob(t *testing.T) {
-	tw := NewCron()
+	tw := New()
 	job := Job{
 		Spec: "@every 2 seconds",
 		Id:   0,
 		Meta: nil,
-		Callback: func(id int, meta any) {
-			t.Log(id, meta)
+		Callback: func(id int, meta any, now time.Time) {
+			t.Log(id, meta, now)
 		},
 	}
 	err := tw.AddJob(&job)
@@ -82,7 +83,7 @@ func TestCron_AddJob(t *testing.T) {
 }
 
 func TestCron_StopWhenNotRunning(t *testing.T) {
-	tw := NewCron()
+	tw := New()
 	err := tw.Stop()
 	if err != nil {
 		t.Log(err)
@@ -92,7 +93,7 @@ func TestCron_StopWhenNotRunning(t *testing.T) {
 
 func TestCron_Stop(t *testing.T) {
 	var err error
-	tw := NewCron()
+	tw := New()
 	err = tw.Start()
 	if err != nil {
 		t.Log(err)
@@ -108,7 +109,7 @@ func TestCron_Stop(t *testing.T) {
 
 func TestCron_StartWhenRunning(t *testing.T) {
 	var err error
-	tw := NewCron()
+	tw := New()
 	err = tw.Start()
 	if err != nil {
 		t.Log(err)
@@ -123,7 +124,7 @@ func TestCron_StartWhenRunning(t *testing.T) {
 
 func TestCron_Start(t *testing.T) {
 	var err error
-	tw := NewCron()
+	tw := New()
 	err = tw.Start()
 	if err != nil {
 		t.Log(err)

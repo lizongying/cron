@@ -6,11 +6,11 @@ import (
 	"time"
 )
 
-type Status int
+type status int
 
 const (
-	Ready Status = iota
-	Running
+	ready status = iota
+	running
 )
 
 type cron struct {
@@ -19,14 +19,13 @@ type cron struct {
 	slotCount   int
 	slots       []*map[int]*Job // [slot][jobId]job
 	jobs        map[int]int     // map[jobId]slot
-	slot        int             // current slot
 	stopChannel chan struct{}
-	status      Status
+	status      status
 	locker      sync.Mutex
 	logger      Logger
 }
 
-func NewCron(options ...Options) (c *cron) {
+func New(options ...Options) (c *cron) {
 	c = &cron{
 		jobs:        make(map[int]int),
 		stopChannel: make(chan struct{}),
@@ -38,7 +37,7 @@ func NewCron(options ...Options) (c *cron) {
 
 	if c.interval == 0 {
 		c.interval = time.Minute
-		c.slotCount = 1 << 23
+		c.slotCount = 60 * 24 * 366
 	}
 	if c.logger == nil {
 		var logger Logger
@@ -58,19 +57,22 @@ func (c *cron) Start() (err error) {
 		return
 	}
 
-	if c.status == Running {
+	if c.status == running {
 		err = errors.New("cron already running")
 		c.logger.Println(err)
 		return
 	}
 
 	now := time.Now()
+	var nextTime time.Time
 	if c.interval == time.Second {
-		time.Sleep(time.Duration(time.Unix(now.Unix(), 0).Add(time.Second).UnixNano() - now.UnixNano()))
+		nextTime = time.Unix(now.Unix(), 0).Add(time.Second)
+		time.Sleep(time.Duration(nextTime.UnixNano() - now.UnixNano()))
 	} else {
-		time.Sleep(time.Duration(time.Unix(now.Unix()-int64(now.Second()), 0).Add(time.Minute).UnixNano() - now.UnixNano()))
+		nextTime = time.Unix(now.Unix()-int64(now.Second()), 0).Add(time.Minute)
+		time.Sleep(time.Duration(nextTime.UnixNano() - now.UnixNano()))
 	}
-
+	now = nextTime
 	c.ticker = time.NewTicker(c.interval)
 
 	go func() {
@@ -78,14 +80,17 @@ func (c *cron) Start() (err error) {
 			c.logger.Println("stopped")
 		}()
 
+		slot := GetSlotSinceYear(now, c.interval)
+		jobs := c.slots[slot]
+		if jobs != nil && len(*jobs) > 0 {
+			go c.runJobs(jobs)
+		}
+
 		for {
 			select {
 			case now = <-c.ticker.C:
-				if c.interval == time.Minute {
-					now = time.Unix(now.Unix()-int64(now.Second()), 0)
-				}
-				slot := GetSlot(now, c.interval)
-				jobs := c.slots[slot]
+				slot = GetSlotSinceYear(now, c.interval)
+				jobs = c.slots[slot]
 				if jobs != nil && len(*jobs) > 0 {
 					go c.runJobs(jobs)
 				}
@@ -95,14 +100,14 @@ func (c *cron) Start() (err error) {
 		}
 	}()
 
-	c.status = Running
+	c.status = running
 	c.logger.Println("cron started")
 	return
 }
 
 func (c *cron) runJobs(jobs *map[int]*Job) {
 	for _, job := range *jobs {
-		go job.Callback(job.Id, job.Meta)
+		go job.Callback(job.Id, job.Meta, job.nextTime)
 		delete(*jobs, job.Id)
 
 		if job.OnlyOnce {
@@ -125,7 +130,7 @@ func (c *cron) Stop() (err error) {
 		return
 	}
 
-	if c.status != Running {
+	if c.status != running {
 		err = errors.New("cron not running")
 		c.logger.Println(err)
 		return
@@ -134,7 +139,7 @@ func (c *cron) Stop() (err error) {
 	close(c.stopChannel)
 	c.ticker.Stop()
 
-	c.status = Ready
+	c.status = ready
 	c.logger.Println("cron stopped")
 
 	return
@@ -165,6 +170,14 @@ func (c *cron) AddJob(job *Job) (err error) {
 		return
 	}
 
+	now := time.Now()
+	if c.interval == time.Second {
+		now = time.Unix(now.Unix(), 0)
+	} else {
+		now = time.Unix(now.Unix()-int64(now.Second()), 0)
+	}
+	job.nextTime = now
+
 	if err = c.saveJob(job); err != nil {
 		c.logger.Println(err)
 		return
@@ -174,7 +187,9 @@ func (c *cron) AddJob(job *Job) (err error) {
 }
 
 func (c *cron) saveJob(job *Job) (err error) {
-	if err = job.Next(c.interval); err != nil {
+	prevTime := job.nextTime
+	slot, err := job.Next(c.interval)
+	if err != nil {
 		err = errors.New("job parse err")
 		c.logger.Println(err)
 		return
@@ -183,15 +198,15 @@ func (c *cron) saveJob(job *Job) (err error) {
 	c.locker.Lock()
 	defer c.locker.Unlock()
 
-	if c.slots[job.slot] == nil {
+	if c.slots[slot] == nil {
 		jobs := make(map[int]*Job)
-		c.slots[job.slot] = &jobs
+		c.slots[slot] = &jobs
 	}
 
-	(*c.slots[job.slot])[job.Id] = job
-	c.jobs[job.Id] = job.slot
+	(*c.slots[slot])[job.Id] = job
+	c.jobs[job.Id] = slot
 
-	c.logger.Println("job save success:", job.Id)
+	c.logger.Println("job save success:", job.Id, prevTime)
 
 	return
 }
