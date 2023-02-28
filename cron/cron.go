@@ -18,7 +18,7 @@ type cron struct {
 	ticker      *time.Ticker
 	slotCount   int
 	slots       []*map[int]*Job // [slot][jobId]job
-	jobs        map[int]int     // map[jobId]slot
+	jobs        map[int]int     // [jobId]slot
 	stopChannel chan struct{}
 	status      status
 	locker      sync.Mutex

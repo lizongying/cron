@@ -197,55 +197,6 @@ func (j *Job) Next(interval time.Duration) (slot int, err error) {
 	return
 }
 
-func GetSlot(now time.Time, interval time.Duration) (slot int) {
-	if interval == time.Minute {
-		slot |= now.Minute()
-		slot |= now.Hour() << 6
-		slot |= now.Day() << 11
-		slot |= int(now.Month()) << 16
-		slot |= int(now.Weekday()) << 20
-
-		return
-	}
-	slot |= now.Second()
-	slot |= now.Minute() << 6
-	slot |= now.Hour() << 12
-	slot |= now.Day() << 17
-	slot |= int(now.Month()) << 22
-	slot |= int(now.Weekday()) << 26
-
-	return
-}
-
-func GetDateTime(slot int, interval time.Duration) (second int, minute int, hour int, day int, month int, week int) {
-	if interval == time.Minute {
-		minute = slot & 0x3f
-		slot >>= 6
-		hour = slot & 0x3f
-		slot >>= 5
-		day = slot & 0x1f
-		slot >>= 5
-		month = slot & 0x1f
-		slot >>= 4
-		week = slot & 0x7
-
-		return
-	}
-	second = slot & 0x3f
-	slot >>= 6
-	minute = slot & 0x3f
-	slot >>= 6
-	hour = slot & 0x3f
-	slot >>= 5
-	day = slot & 0x1f
-	slot >>= 5
-	month = slot & 0x1f
-	slot >>= 4
-	week = slot & 0x7
-
-	return
-}
-
 func GetSlotSinceYear(now time.Time, interval time.Duration) (slot int) {
 	year, _ := time.ParseInLocation("2006", now.Format("2006"), time.Local)
 	if interval == time.Minute {

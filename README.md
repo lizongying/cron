@@ -10,6 +10,9 @@ go get -u github.com/lizongying/cron
 
 # Usage
 
+* Spec: 定时
+* RunType: now 立即开始; Divisibility 整时运行
+
 ```go
 package main
 
@@ -27,9 +30,10 @@ func main() {
 	t := cron.New(cron.WithIntervalSecond(), cron.WithLoggerStdout())
 
 	job := cron.Job{
-		Spec: "@every 1 seconds",
-		Id:   1,
-		Meta: nil,
+		Spec:    "@every 3 seconds",
+		RunType: cron.Divisibility,
+		Id:      1,
+		Meta:    nil,
 		Callback: func(id int, meta any, now time.Time) {
 			logger.Println(id, meta, now)
 		},
