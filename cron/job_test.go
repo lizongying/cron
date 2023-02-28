@@ -10,12 +10,12 @@ func TestJob_Next(t *testing.T) {
 	job := Job{
 		Spec: "@every 2 seconds",
 	}
-	err := job.Next(time.Second)
+	slot, err := job.Next(time.Second)
 	if err != nil {
 		t.Log(err)
 	}
 	t.Logf("%+v", job)
-	t.Logf("%+v", job.slot)
+	t.Logf("%+v", slot)
 	t.Log(job.nextTime)
 }
 

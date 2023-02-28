@@ -171,12 +171,10 @@ func (c *cron) AddJob(job *Job) (err error) {
 	}
 
 	now := time.Now()
-	if c.interval == time.Second {
-		now = time.Unix(now.Unix(), 0)
-	} else {
-		now = time.Unix(now.Unix()-int64(now.Second()), 0)
+	if err = job.Init(now, c.interval); err != nil {
+		c.logger.Println(err)
+		return
 	}
-	job.nextTime = now
 
 	if err = c.saveJob(job); err != nil {
 		c.logger.Println(err)
