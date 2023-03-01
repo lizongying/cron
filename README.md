@@ -1,8 +1,10 @@
-# Cronjob
+# Cron
 
 基于时间轮实现的定时任务，目前支持 @every 1 second|minute|hour|day|month|week
 
-# Features
+[cron](https://github.com/lizongying/cron)
+
+## Features
 
 * 暂未支持crontab格式。使用自定义格式，更简单
 * 管理任务和运行任务不同线程，任务运行更实时
@@ -12,13 +14,13 @@
 * 无回调函数的处理方法，交给调度者处理
 * 支持整点执行和立即执行
 
-# Install
+## Install
 
 ```shell
 go get -u github.com/lizongying/cron
 ```
 
-# Usage
+## Usage
 
 * Spec: 定时
 * OnlyOnce: 只执行一次
