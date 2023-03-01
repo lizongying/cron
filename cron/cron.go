@@ -13,7 +13,7 @@ const (
 	running
 )
 
-type cron struct {
+type Cron struct {
 	interval    time.Duration
 	ticker      *time.Ticker
 	slotCount   int
@@ -25,8 +25,8 @@ type cron struct {
 	logger      Logger
 }
 
-func New(options ...Options) (c *cron) {
-	c = &cron{
+func New(options ...Options) (c *Cron) {
+	c = &Cron{
 		jobs:        make(map[int]int),
 		stopChannel: make(chan struct{}),
 	}
@@ -50,7 +50,7 @@ func New(options ...Options) (c *cron) {
 	return
 }
 
-func (c *cron) Start() (err error) {
+func (c *Cron) Start() (err error) {
 	if c == nil {
 		err = errors.New("cron nil")
 		c.logger.Println(err)
@@ -105,7 +105,7 @@ func (c *cron) Start() (err error) {
 	return
 }
 
-func (c *cron) runJobs(jobs *map[int]*Job) {
+func (c *Cron) runJobs(jobs *map[int]*Job) {
 	for _, job := range *jobs {
 		go job.Callback(job.Id, job.Meta, job.nextTime)
 		delete(*jobs, job.Id)
@@ -123,7 +123,7 @@ func (c *cron) runJobs(jobs *map[int]*Job) {
 	}
 }
 
-func (c *cron) Stop() (err error) {
+func (c *Cron) Stop() (err error) {
 	if c == nil {
 		err = errors.New("cron nil")
 		c.logger.Println(err)
@@ -145,7 +145,7 @@ func (c *cron) Stop() (err error) {
 	return
 }
 
-func (c *cron) AddJob(job *Job) (err error) {
+func (c *Cron) AddJob(job *Job) (err error) {
 	if c == nil {
 		err = errors.New("cron nil")
 		c.logger.Println(err)
@@ -184,7 +184,7 @@ func (c *cron) AddJob(job *Job) (err error) {
 	return
 }
 
-func (c *cron) saveJob(job *Job) (err error) {
+func (c *Cron) saveJob(job *Job) (err error) {
 	prevTime := job.nextTime
 	slot, err := job.Next(c.interval)
 	if err != nil {
@@ -209,7 +209,7 @@ func (c *cron) saveJob(job *Job) (err error) {
 	return
 }
 
-func (c *cron) RemoveJob(id int) (err error) {
+func (c *Cron) RemoveJob(id int) (err error) {
 	if c == nil {
 		err = errors.New("cron nil")
 		c.logger.Println(err)
