@@ -21,9 +21,9 @@ func TestJob_Next(t *testing.T) {
 
 func TestJob_GetSlot(t *testing.T) {
 	now, _ := time.ParseInLocation(time.DateTime, "2023-12-31 23:59:59", time.Local)
-	slot := GetSlot(now, time.Minute)
+	slot := GetSlotSinceYear(now, time.Minute)
 	t.Log(slot)
-	slot = GetSlot(now, time.Second)
+	slot = GetSlotSinceYear(now, time.Second)
 	t.Log(slot)
 }
 
