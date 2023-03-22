@@ -5,6 +5,50 @@ import (
 	"time"
 )
 
+func TestJob_Init(t *testing.T) {
+	now := time.Now()
+	t.Log(now)
+	job := Job{
+		Spec: "@every 2 minutes",
+	}
+	err := job.Init(now, time.Minute)
+	if err != nil {
+		t.Log(err)
+	}
+	t.Logf("%+v", job)
+	t.Log(job.nextTime)
+}
+
+func TestJob_InitCrontab(t *testing.T) {
+	var err error
+	now := time.Now()
+	t.Log(now)
+	job := Job{
+		Spec: "* * * * * *",
+	}
+	//err := job.Init(now, time.Minute)
+	//if err != nil {
+	//	t.Log(err)
+	//}
+	//t.Logf("%+v", job)
+	//t.Log(job.nextTime)
+
+	job = Job{
+		Spec: "* 1-10 1,2,3 4 0-6",
+	}
+	err = job.Init(now, time.Minute)
+	if err != nil {
+		t.Log(err)
+	}
+	t.Logf("%+v", job)
+	t.Log(job.nextTime)
+	_, err = job.Next(time.Minute)
+	if err != nil {
+		t.Log(err)
+	}
+	t.Log(job.nextTime)
+}
+
 func TestJob_Next(t *testing.T) {
 	t.Log(time.Now())
 	job := Job{
@@ -13,6 +57,7 @@ func TestJob_Next(t *testing.T) {
 	slot, err := job.Next(time.Second)
 	if err != nil {
 		t.Log(err)
+		return
 	}
 	t.Logf("%+v", job)
 	t.Logf("%+v", slot)

@@ -4,7 +4,6 @@ import (
 	"github.com/lizongying/cron/cron"
 	"log"
 	"os"
-	"time"
 )
 
 func main() {
@@ -18,9 +17,8 @@ func main() {
 		OnlyOnce: false,
 		RunType:  cron.Divisibility,
 		Id:       1,
-		Meta:     nil,
-		Callback: func(id int, meta any, now time.Time) {
-			logger.Println(id, meta, now)
+		Callback: func() {
+			logger.Println(1)
 		},
 	}
 	_ = t.AddJob(&job)

@@ -107,7 +107,14 @@ func (c *Cron) Start() (err error) {
 
 func (c *Cron) runJobs(jobs *map[int]*Job) {
 	for _, job := range *jobs {
-		go job.Callback(job.Id, job.Meta, job.nextTime)
+		go func() {
+			defer func() {
+				if err := recover(); err != nil {
+					c.logger.Println("job run err:", err)
+				}
+			}()
+			job.Callback()
+		}()
 		delete(*jobs, job.Id)
 
 		if job.OnlyOnce {
@@ -188,8 +195,6 @@ func (c *Cron) saveJob(job *Job) (err error) {
 	prevTime := job.nextTime
 	slot, err := job.Next(c.interval)
 	if err != nil {
-		err = errors.New("job parse err")
-		c.logger.Println(err)
 		return
 	}
 

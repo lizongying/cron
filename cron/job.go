@@ -2,6 +2,7 @@ package cron
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"regexp"
 	"strconv"
@@ -9,7 +10,7 @@ import (
 	"time"
 )
 
-type Callback func(id int, meta any, now time.Time)
+type Callback func()
 
 type RunType int
 
@@ -18,18 +19,37 @@ const (
 	Divisibility
 )
 
+var reEvery = regexp.MustCompile(`@every\s(\d+)\s(second|minute|hour|day|month|week)s?`)
+var reDash = regexp.MustCompile(`(\d+)-(\d+)`)
+var reSlash = regexp.MustCompile(`\*/(\d+)`)
+
+type element struct {
+	min  int
+	max  int
+	name string
+}
+
+var parser = []element{
+	{0, 59, "second"},
+	{0, 59, "minute"},
+	{0, 23, "hour"},
+	{1, 31, "day"},
+	{1, 12, "month"},
+	{0, 6, "week"},
+}
+
 type Job struct {
 	Spec     string
 	OnlyOnce bool
 	RunType  RunType
 	Id       int
-	Meta     any
 	Callback Callback
 
-	nextTime time.Time
+	nextTime   time.Time
+	clock      *Clock
+	everyName  string
+	everyValue int
 }
-
-var reEvery = regexp.MustCompile(`@every\s(\d+)\s(second|minute|hour|day|month|week)s?`)
 
 func (j *Job) Init(now time.Time, interval time.Duration) (err error) {
 	if interval == time.Second {
@@ -37,6 +57,7 @@ func (j *Job) Init(now time.Time, interval time.Duration) (err error) {
 	} else {
 		now = time.Unix(now.Unix()-int64(now.Second()), 0)
 	}
+
 	r := reEvery.FindStringSubmatch(j.Spec)
 	if len(r) == 3 {
 		if strings.Index("second|minute|hour|day|month|week", r[2]) < 0 {
@@ -44,7 +65,11 @@ func (j *Job) Init(now time.Time, interval time.Duration) (err error) {
 			return
 		}
 
-		v, _ := strconv.Atoi(r[1])
+		v, e := strconv.Atoi(r[1])
+		if e != nil {
+			err = errors.New("parse err")
+			return
+		}
 
 		if r[2] == "second" {
 			if v > 59 {
@@ -54,8 +79,7 @@ func (j *Job) Init(now time.Time, interval time.Duration) (err error) {
 			if j.RunType == Divisibility {
 				now = now.Add(-time.Second * time.Duration(now.Second()%v))
 			}
-		}
-		if r[2] == "minute" {
+		} else if r[2] == "minute" {
 			if v > 59 {
 				err = errors.New("parse err")
 				return
@@ -64,8 +88,7 @@ func (j *Job) Init(now time.Time, interval time.Duration) (err error) {
 				now = now.Add(-time.Second * time.Duration(now.Second()))
 				now = now.Add(-time.Minute * time.Duration(now.Minute()%v))
 			}
-		}
-		if r[2] == "hour" {
+		} else if r[2] == "hour" {
 			if v > 23 {
 				err = errors.New("parse err")
 				return
@@ -75,8 +98,7 @@ func (j *Job) Init(now time.Time, interval time.Duration) (err error) {
 				now = now.Add(-time.Minute * time.Duration(now.Minute()))
 				now = now.Add(-time.Hour * time.Duration(now.Hour()%v))
 			}
-		}
-		if r[2] == "day" {
+		} else if r[2] == "day" {
 			if v > 30 {
 				err = errors.New("parse err")
 				return
@@ -87,8 +109,7 @@ func (j *Job) Init(now time.Time, interval time.Duration) (err error) {
 				now = now.Add(-time.Hour * time.Duration(now.Hour()))
 				now = now.AddDate(0, 0, -now.Day()%v)
 			}
-		}
-		if r[2] == "month" {
+		} else if r[2] == "month" {
 			if v > 11 {
 				err = errors.New("parse err")
 				return
@@ -100,8 +121,7 @@ func (j *Job) Init(now time.Time, interval time.Duration) (err error) {
 				now = now.AddDate(0, 0, -(now.Day() - 1))
 				now = now.AddDate(0, -int(now.Month())%v, 0)
 			}
-		}
-		if r[2] == "week" {
+		} else if r[2] == "week" {
 			if v > 3 {
 				err = errors.New("parse err")
 				return
@@ -115,13 +135,175 @@ func (j *Job) Init(now time.Time, interval time.Duration) (err error) {
 				now = now.Add(-time.Hour * time.Duration(now.Hour()))
 				now = now.AddDate(0, 0, -int(now.Weekday())%7)
 			}
+		} else {
+			err = errors.New("parse err")
+			return
 		}
-		if interval == time.Minute {
-			now = time.Unix(now.Unix()-int64(now.Second()), 0)
-		}
+		j.everyName = r[2]
+		j.everyValue = v
 	} else {
-		err = errors.New("parse err")
-		return
+		li := strings.Split(j.Spec, " ")
+		if len(li) == 5 {
+			li = append([]string{"*"}, li...)
+		}
+		if len(li) == 6 {
+			var list [6]uint64
+		LOOP1:
+			for i, v := range li {
+				if v == "*" {
+					begin := parser[i].min
+					end := parser[i].max + 1
+					for ii := begin; ii < end; ii++ {
+						list[i] |= 1 << ii
+					}
+					continue
+				}
+				li2 := strings.Split(v, ",")
+				for _, v2 := range li2 {
+					r = reDash.FindStringSubmatch(v2)
+					if len(r) == 3 {
+						begin, e := strconv.Atoi(r[1])
+						if e != nil {
+							err = errors.New("parse err")
+							break LOOP1
+						}
+						if begin > parser[i].max || begin < parser[i].min {
+							err = errors.New("parse err")
+							break LOOP1
+						}
+						end, e := strconv.Atoi(r[2])
+						if e != nil {
+							err = errors.New("parse err")
+							break LOOP1
+						}
+						if end > parser[i].max || end < parser[i].min {
+							err = errors.New("parse err")
+							break LOOP1
+						}
+
+						end++
+						for ii := begin; ii < end; ii++ {
+							list[i] |= 1 << ii
+						}
+
+						continue
+					}
+					r = reSlash.FindStringSubmatch(v2)
+					if len(r) == 2 {
+						every, e := strconv.Atoi(r[1])
+						if e != nil {
+							err = errors.New("parse err")
+							break LOOP1
+						}
+						// TODO max?
+						if every < 1 {
+							err = errors.New("parse err")
+							break LOOP1
+						}
+
+						if i == 0 {
+							if every > 59 {
+								err = errors.New("parse err")
+								break LOOP1
+							}
+							if j.RunType == Divisibility {
+								now = now.Add(-time.Second * time.Duration(now.Second()%every))
+							}
+						} else if i == 1 {
+							if every > 59 {
+								err = errors.New("parse err")
+								break LOOP1
+							}
+							if j.RunType == Divisibility {
+								now = now.Add(-time.Second * time.Duration(now.Second()))
+								now = now.Add(-time.Minute * time.Duration(now.Minute()%every))
+							}
+						} else if i == 2 {
+							if every > 23 {
+								err = errors.New("parse err")
+								break LOOP1
+							}
+							if j.RunType == Divisibility {
+								now = now.Add(-time.Second * time.Duration(now.Second()))
+								now = now.Add(-time.Minute * time.Duration(now.Minute()))
+								now = now.Add(-time.Hour * time.Duration(now.Hour()%every))
+							}
+						} else if i == 3 {
+							if every > 30 {
+								err = errors.New("parse err")
+								break LOOP1
+							}
+							if j.RunType == Divisibility {
+								now = now.Add(-time.Second * time.Duration(now.Second()))
+								now = now.Add(-time.Minute * time.Duration(now.Minute()))
+								now = now.Add(-time.Hour * time.Duration(now.Hour()))
+								now = now.AddDate(0, 0, -now.Day()%every)
+							}
+						} else if i == 4 {
+							if every > 11 {
+								err = errors.New("parse err")
+								break LOOP1
+							}
+							if j.RunType == Divisibility {
+								now = now.Add(-time.Second * time.Duration(now.Second()))
+								now = now.Add(-time.Minute * time.Duration(now.Minute()))
+								now = now.Add(-time.Hour * time.Duration(now.Hour()))
+								now = now.AddDate(0, 0, -(now.Day() - 1))
+								now = now.AddDate(0, -int(now.Month())%every, 0)
+							}
+						} else if i == 5 {
+							if every > 3 {
+								err = errors.New("parse err")
+								break LOOP1
+							}
+
+							// default run on sunday
+							// monday now = now.AddDate(0, 0, -int(now.Weekday())%7+1)
+							if j.RunType == Divisibility {
+								now = now.Add(-time.Second * time.Duration(now.Second()))
+								now = now.Add(-time.Minute * time.Duration(now.Minute()))
+								now = now.Add(-time.Hour * time.Duration(now.Hour()))
+								now = now.AddDate(0, 0, -int(now.Weekday())%7)
+							}
+						} else {
+							err = errors.New("parse err")
+							break LOOP1
+						}
+						j.everyName = parser[i].name
+						j.everyValue = every
+						continue
+					}
+
+					ii, e := strconv.Atoi(v2)
+					if e != nil {
+						err = errors.New("parse err")
+						break LOOP1
+					}
+
+					list[i] |= 1 << ii
+					continue
+				}
+			}
+			if err != nil {
+				err = errors.New("parse err")
+				return
+			}
+
+			clock, e := NewClock(interval, list[0], list[1], list[2], list[3], list[4], list[5])
+			if e != nil {
+				err = e
+				return
+			}
+			j.clock = clock
+			now = clock.Now()
+		} else {
+			err = errors.New("parse err")
+			return
+		}
+	}
+
+	if interval == time.Minute {
+		now = time.Unix(now.Unix()-int64(now.Second()), 0)
 	}
 
 	j.nextTime = now
@@ -131,63 +313,31 @@ func (j *Job) Init(now time.Time, interval time.Duration) (err error) {
 
 func (j *Job) Next(interval time.Duration) (slot int, err error) {
 	now := j.nextTime
-	r := reEvery.FindStringSubmatch(j.Spec)
-	if len(r) == 3 {
-		if strings.Index("second|minute|hour|day|month|week", r[2]) < 0 {
-			err = errors.New("parse err")
-			return
-		}
-
-		v, _ := strconv.Atoi(r[1])
-
-		if r[2] == "second" {
-			if v > 59 {
-				err = errors.New("parse err")
-				return
-			}
-			now = now.Add(time.Second * time.Duration(v))
-		}
-		if r[2] == "minute" {
-			if v > 59 {
-				err = errors.New("parse err")
-				return
-			}
-			now = now.Add(time.Minute * time.Duration(v))
-		}
-		if r[2] == "hour" {
-			if v > 23 {
-				err = errors.New("parse err")
-				return
-			}
-			now = now.Add(time.Hour * time.Duration(v))
-		}
-		if r[2] == "day" {
-			if v > 30 {
-				err = errors.New("parse err")
-				return
-			}
-			now = now.AddDate(0, 0, v)
-		}
-		if r[2] == "month" {
-			if v > 11 {
-				err = errors.New("parse err")
-				return
-			}
-			now = now.AddDate(0, v, 0)
-		}
-		if r[2] == "week" {
-			if v > 3 {
-				err = errors.New("parse err")
-				return
-			}
-			now = now.AddDate(0, 0, 7*v)
-		}
-		if interval == time.Minute {
-			now = time.Unix(now.Unix()-int64(now.Second()), 0)
+	if j.everyValue > 0 {
+		switch j.everyName {
+		case "second":
+			now = now.Add(time.Second * time.Duration(j.everyValue))
+		case "minute":
+			now = now.Add(time.Minute * time.Duration(j.everyValue))
+		case "hour":
+			now = now.Add(time.Hour * time.Duration(j.everyValue))
+		case "day":
+			now = now.AddDate(0, 0, j.everyValue)
+		case "month":
+			now = now.AddDate(0, j.everyValue, 0)
+		case "week":
+			now = now.AddDate(0, 0, 7*j.everyValue)
 		}
 	} else {
-		err = errors.New("parse err")
-		return
+		now, err = j.clock.NextWithWeek()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+	}
+
+	if interval == time.Minute {
+		now = time.Unix(now.Unix()-int64(now.Second()), 0)
 	}
 
 	j.nextTime = now
@@ -205,6 +355,18 @@ func GetSlotSinceYear(now time.Time, interval time.Duration) (slot int) {
 		return
 	}
 	slot = int(math.Floor(now.Sub(year).Seconds()))
+
+	return
+}
+
+func GetAllTime(in [6]int64) (out [6][]uint8) {
+	for k, v := range in {
+		for i := 0; i < 60; i++ {
+			if v&(1<<i) > 0 {
+				out[k] = append(out[k], uint8(i))
+			}
+		}
+	}
 
 	return
 }
