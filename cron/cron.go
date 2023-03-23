@@ -83,7 +83,7 @@ func (c *Cron) Start() (err error) {
 		slot := GetSlotSinceYear(now, c.interval)
 		jobs := c.slots[slot]
 		if jobs != nil && len(*jobs) > 0 {
-			go c.runJobs(jobs)
+			go c.runJobs(jobs, now)
 		}
 
 		for {
@@ -92,7 +92,7 @@ func (c *Cron) Start() (err error) {
 				slot = GetSlotSinceYear(now, c.interval)
 				jobs = c.slots[slot]
 				if jobs != nil && len(*jobs) > 0 {
-					go c.runJobs(jobs)
+					go c.runJobs(jobs, now)
 				}
 			case <-c.stopChannel:
 				return
@@ -105,22 +105,26 @@ func (c *Cron) Start() (err error) {
 	return
 }
 
-func (c *Cron) runJobs(jobs *map[int]*Job) {
+func (c *Cron) runJobs(jobs *map[int]*Job, now time.Time) {
+	c.locker.Lock()
+	defer c.locker.Unlock()
+
 	for _, job := range *jobs {
-		go func() {
+		go func(job *Job) {
 			defer func() {
 				if err := recover(); err != nil {
 					c.logger.Println("job run err:", err)
 				}
 			}()
-			job.Callback()
-		}()
+			job.Callback(job.Id, job.Meta, now)
+		}(job)
 		delete(*jobs, job.Id)
 
 		if job.OnlyOnce {
 			delete(c.jobs, job.Id)
-			continue
+			return
 		}
+
 		err := c.saveJob(job)
 		if err != nil {
 			c.logger.Println(err)
@@ -183,23 +187,22 @@ func (c *Cron) AddJob(job *Job) (err error) {
 		return
 	}
 
+	c.locker.Lock()
+	defer c.locker.Unlock()
+
 	if err = c.saveJob(job); err != nil {
 		c.logger.Println(err)
 		return
 	}
-
+	c.logger.Println("job next time:", job.Id, job.nextTime)
 	return
 }
 
 func (c *Cron) saveJob(job *Job) (err error) {
-	prevTime := job.nextTime
 	slot, err := job.Next(c.interval)
 	if err != nil {
 		return
 	}
-
-	c.locker.Lock()
-	defer c.locker.Unlock()
 
 	if c.slots[slot] == nil {
 		jobs := make(map[int]*Job)
@@ -208,8 +211,6 @@ func (c *Cron) saveJob(job *Job) (err error) {
 
 	(*c.slots[slot])[job.Id] = job
 	c.jobs[job.Id] = slot
-
-	c.logger.Println("job save success:", job.Id, prevTime)
 
 	return
 }

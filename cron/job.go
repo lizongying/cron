@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-type Callback func()
+type Callback func(id int, meta any, time time.Time)
 
 type RunType int
 
@@ -39,11 +39,13 @@ var parser = []element{
 }
 
 type Job struct {
-	Spec     string
-	OnlyOnce bool
-	RunType  RunType
-	Id       int
-	Callback Callback
+	Spec       string
+	OnlyOnce   bool
+	RunIfDelay bool
+	RunType    RunType
+	Id         int
+	Meta       any
+	Callback   Callback
 
 	nextTime   time.Time
 	clock      *Clock
@@ -158,6 +160,105 @@ func (j *Job) Init(now time.Time, interval time.Duration) (err error) {
 					}
 					continue
 				}
+				r = reSlash.FindStringSubmatch(v)
+				if len(r) == 2 {
+					every, e := strconv.Atoi(r[1])
+					if e != nil {
+						err = errors.New("parse err")
+						break LOOP1
+					}
+					// TODO max?
+					if every < 1 {
+						err = errors.New("parse err")
+						break LOOP1
+					}
+
+					if i == 0 {
+						if every > 59 {
+							err = errors.New("parse err")
+							break LOOP1
+						}
+						if j.RunType == Divisibility {
+							now = now.Add(-time.Second * time.Duration(now.Second()%every))
+						}
+					} else if i == 1 {
+						if every > 59 {
+							err = errors.New("parse err")
+							break LOOP1
+						}
+						if j.RunType == Divisibility {
+							now = now.Add(-time.Second * time.Duration(now.Second()))
+							now = now.Add(-time.Minute * time.Duration(now.Minute()%every))
+						}
+					} else if i == 2 {
+						if every > 23 {
+							err = errors.New("parse err")
+							break LOOP1
+						}
+						if j.RunType == Divisibility {
+							now = now.Add(-time.Second * time.Duration(now.Second()))
+							now = now.Add(-time.Minute * time.Duration(now.Minute()))
+							now = now.Add(-time.Hour * time.Duration(now.Hour()%every))
+						}
+					} else if i == 3 {
+						if every > 30 {
+							err = errors.New("parse err")
+							break LOOP1
+						}
+						if j.RunType == Divisibility {
+							now = now.Add(-time.Second * time.Duration(now.Second()))
+							now = now.Add(-time.Minute * time.Duration(now.Minute()))
+							now = now.Add(-time.Hour * time.Duration(now.Hour()))
+							now = now.AddDate(0, 0, -now.Day()%every)
+						}
+					} else if i == 4 {
+						if every > 11 {
+							err = errors.New("parse err")
+							break LOOP1
+						}
+						if j.RunType == Divisibility {
+							now = now.Add(-time.Second * time.Duration(now.Second()))
+							now = now.Add(-time.Minute * time.Duration(now.Minute()))
+							now = now.Add(-time.Hour * time.Duration(now.Hour()))
+							now = now.AddDate(0, 0, -(now.Day() - 1))
+							now = now.AddDate(0, -int(now.Month())%every, 0)
+						}
+					} else if i == 5 {
+						if every > 3 {
+							err = errors.New("parse err")
+							break LOOP1
+						}
+
+						// default run on sunday
+						// monday now = now.AddDate(0, 0, -int(now.Weekday())%7+1)
+						if j.RunType == Divisibility {
+							now = now.Add(-time.Second * time.Duration(now.Second()))
+							now = now.Add(-time.Minute * time.Duration(now.Minute()))
+							now = now.Add(-time.Hour * time.Duration(now.Hour()))
+							now = now.AddDate(0, 0, -int(now.Weekday())%7)
+						}
+					} else {
+						err = errors.New("parse err")
+						break LOOP1
+					}
+
+					begin := parser[i].min
+					end := parser[i].max + 1
+					for ii := begin; ii < end; ii++ {
+						if j.RunType == Divisibility {
+							if ii%every == 0 {
+								list[i] |= 1 << ii
+							}
+						} else {
+							// TODO
+							if ii%every == 0 {
+								list[i] |= 1 << ii
+							}
+						}
+					}
+					continue
+				}
+
 				li2 := strings.Split(v, ",")
 				for _, v2 := range li2 {
 					r = reDash.FindStringSubmatch(v2)
@@ -186,91 +287,6 @@ func (j *Job) Init(now time.Time, interval time.Duration) (err error) {
 							list[i] |= 1 << ii
 						}
 
-						continue
-					}
-					r = reSlash.FindStringSubmatch(v2)
-					if len(r) == 2 {
-						every, e := strconv.Atoi(r[1])
-						if e != nil {
-							err = errors.New("parse err")
-							break LOOP1
-						}
-						// TODO max?
-						if every < 1 {
-							err = errors.New("parse err")
-							break LOOP1
-						}
-
-						if i == 0 {
-							if every > 59 {
-								err = errors.New("parse err")
-								break LOOP1
-							}
-							if j.RunType == Divisibility {
-								now = now.Add(-time.Second * time.Duration(now.Second()%every))
-							}
-						} else if i == 1 {
-							if every > 59 {
-								err = errors.New("parse err")
-								break LOOP1
-							}
-							if j.RunType == Divisibility {
-								now = now.Add(-time.Second * time.Duration(now.Second()))
-								now = now.Add(-time.Minute * time.Duration(now.Minute()%every))
-							}
-						} else if i == 2 {
-							if every > 23 {
-								err = errors.New("parse err")
-								break LOOP1
-							}
-							if j.RunType == Divisibility {
-								now = now.Add(-time.Second * time.Duration(now.Second()))
-								now = now.Add(-time.Minute * time.Duration(now.Minute()))
-								now = now.Add(-time.Hour * time.Duration(now.Hour()%every))
-							}
-						} else if i == 3 {
-							if every > 30 {
-								err = errors.New("parse err")
-								break LOOP1
-							}
-							if j.RunType == Divisibility {
-								now = now.Add(-time.Second * time.Duration(now.Second()))
-								now = now.Add(-time.Minute * time.Duration(now.Minute()))
-								now = now.Add(-time.Hour * time.Duration(now.Hour()))
-								now = now.AddDate(0, 0, -now.Day()%every)
-							}
-						} else if i == 4 {
-							if every > 11 {
-								err = errors.New("parse err")
-								break LOOP1
-							}
-							if j.RunType == Divisibility {
-								now = now.Add(-time.Second * time.Duration(now.Second()))
-								now = now.Add(-time.Minute * time.Duration(now.Minute()))
-								now = now.Add(-time.Hour * time.Duration(now.Hour()))
-								now = now.AddDate(0, 0, -(now.Day() - 1))
-								now = now.AddDate(0, -int(now.Month())%every, 0)
-							}
-						} else if i == 5 {
-							if every > 3 {
-								err = errors.New("parse err")
-								break LOOP1
-							}
-
-							// default run on sunday
-							// monday now = now.AddDate(0, 0, -int(now.Weekday())%7+1)
-							if j.RunType == Divisibility {
-								now = now.Add(-time.Second * time.Duration(now.Second()))
-								now = now.Add(-time.Minute * time.Duration(now.Minute()))
-								now = now.Add(-time.Hour * time.Duration(now.Hour()))
-								now = now.AddDate(0, 0, -int(now.Weekday())%7)
-							}
-						} else {
-							err = errors.New("parse err")
-							break LOOP1
-						}
-						j.everyName = parser[i].name
-						j.everyValue = every
 						continue
 					}
 
@@ -340,6 +356,16 @@ func (j *Job) Next(interval time.Duration) (slot int, err error) {
 		now = time.Unix(now.Unix()-int64(now.Second()), 0)
 	}
 
+	if j.RunIfDelay {
+		if now.Sub(time.Now()) < interval {
+			now = time.Now().Add(interval)
+		}
+	} else {
+		if now.Sub(time.Now()) < interval {
+			return j.Next(interval)
+		}
+	}
+
 	j.nextTime = now
 
 	slot = GetSlotSinceYear(now, interval)
@@ -355,18 +381,6 @@ func GetSlotSinceYear(now time.Time, interval time.Duration) (slot int) {
 		return
 	}
 	slot = int(math.Floor(now.Sub(year).Seconds()))
-
-	return
-}
-
-func GetAllTime(in [6]int64) (out [6][]uint8) {
-	for k, v := range in {
-		for i := 0; i < 60; i++ {
-			if v&(1<<i) > 0 {
-				out[k] = append(out[k], uint8(i))
-			}
-		}
-	}
 
 	return
 }
