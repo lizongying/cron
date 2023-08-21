@@ -1,12 +1,12 @@
 # Cron
 
-基于时间轮实现的定时任务，更好的性能。目前支持crontab格式或`every 1 second|minute|hour|day|month|week`
+基于时间轮实现的定时任务，更好的性能。目前支持crontab格式或如`every 1 second|minute|hour|day|month|week`格式
 
 [cron](https://github.com/lizongying/cron)
 
 ## Features
 
-* 支持crontab格式或`every 1 second|minute|hour|day|month|week`，更简单
+* 支持crontab格式或如`every 1 second|minute|hour|day|month|week`格式，更简单
 * 执行时间进行了修正，会在秒/分开始的时候才执行，所以初次执行会有不到1秒/1分的延时
 * 基于时间轮，保证实时性，任务容量会更高些。并发性能是github.com/robfig/cron的百倍以上，且更准时
 * 回调函数可以增加一些参数，更容易调试，使用也更方便
@@ -25,8 +25,9 @@ go get -u github.com/lizongying/cron
 * Spec: 定时
 * OnlyOnce: 只执行一次。默认false
 * RunIfDelay: 即使超时(超过最大job处理数量)也会执行，否则本次不执行。默认false
-* RunType: cron.Now 基于当前时间立即执行; cron.Divisibility 整时运行。
-* Id: 必须设置且不能重复。
+* RunType: cron.Now 基于当前时间立即执行，默认; cron.Divisibility 整时运行。
+* Id: 任务的唯一id，必须设置且不能重复。
+* Meta: 任务的额外参数，非必须设置。
 * Callback: 回调方法。
 
 ### cron options
