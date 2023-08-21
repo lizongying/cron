@@ -90,7 +90,7 @@ func TestCron_StopWhenNotRunning(t *testing.T) {
 
 func TestCron_Stop(t *testing.T) {
 	var err error
-	tw := New()
+	tw := New(WithIntervalMinute())
 	err = tw.Start()
 	if err != nil {
 		t.Log(err)
@@ -101,7 +101,7 @@ func TestCron_Stop(t *testing.T) {
 		t.Log(err)
 		return
 	}
-	t.Logf("%+v", tw)
+	t.Log("slotCount", tw.slotCount)
 }
 
 func TestCron_StartWhenRunning(t *testing.T) {

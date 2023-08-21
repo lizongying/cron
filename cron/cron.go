@@ -50,6 +50,12 @@ func New(options ...Options) (c *Cron) {
 	return
 }
 
+func (c *Cron) MustStart() {
+	if err := c.Start(); err != nil {
+		c.logger.Println(err)
+	}
+}
+
 func (c *Cron) Start() (err error) {
 	if c == nil {
 		err = errors.New("cron nil")
@@ -134,6 +140,12 @@ func (c *Cron) runJobs(jobs *map[int]*Job, now time.Time) {
 	}
 }
 
+func (c *Cron) MustStop() {
+	if err := c.Stop(); err != nil {
+		c.logger.Println(err)
+	}
+}
+
 func (c *Cron) Stop() (err error) {
 	if c == nil {
 		err = errors.New("cron nil")
@@ -154,6 +166,12 @@ func (c *Cron) Stop() (err error) {
 	c.logger.Println("cron stopped")
 
 	return
+}
+
+func (c *Cron) MustAddJob(job *Job) {
+	if err := c.AddJob(job); err != nil {
+		c.logger.Println(err)
+	}
 }
 
 func (c *Cron) AddJob(job *Job) (err error) {

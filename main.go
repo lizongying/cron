@@ -15,7 +15,7 @@ func main() {
 
 	for i := 0; i < 5000000; i++ {
 		v := i
-		_ = t.AddJob(&cron.Job{
+		t.MustAddJob(&cron.Job{
 			Spec: "*/3 * * * * *",
 			Meta: v,
 			Id:   v + 1,
@@ -28,9 +28,9 @@ func main() {
 	}
 
 	logger.Println(time.Now())
-	_ = t.Start()
+	t.MustStart()
 	defer func() {
-		_ = t.Stop()
+		t.MustStop()
 	}()
 
 	select {}

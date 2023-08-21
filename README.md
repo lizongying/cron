@@ -25,6 +25,8 @@ go get -u github.com/lizongying/cron
 * RunIfDelay: 即使超时(超过最大job处理数量)也会执行，否则本次不执行。
 * RunType: now 基于当前时间立即执行; Divisibility 整时运行
 
+### run
+
 ```go
 package main
 
@@ -39,7 +41,7 @@ func main() {
 	var logger cron.Logger
 	logger = log.New(os.Stdout, "", log.Ldate|log.Ltime|log.Lshortfile)
 
-	t := cron.New(cron.WithIntervalSecond(), cron.WithLoggerStdout())
+	c := cron.New(cron.WithIntervalSecond(), cron.WithLoggerStdout())
 
 	job := cron.Job{
 		//Spec:     "every 3 seconds",
@@ -51,14 +53,27 @@ func main() {
 			logger.Println(id, meta, t)
 		},
 	}
-	_ = t.AddJob(&job)
+	c.MustAddJob(&job)
 
-	_ = t.Start()
-	defer func() {
-		_ = t.Stop()
-	}()
+	c.MustStart()
 
 	select {}
+}
+
+```
+
+### stop
+
+```go
+package main
+
+import (
+	"github.com/lizongying/cron/cron"
+)
+
+func main() {
+	c := cron.New()
+	c.MustStop()
 }
 
 ```
