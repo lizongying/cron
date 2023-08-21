@@ -15,7 +15,6 @@ func TestJob_Init(t *testing.T) {
 	if err != nil {
 		t.Log(err)
 	}
-	t.Logf("%+v", job)
 	t.Log(job.nextTime)
 }
 
@@ -40,7 +39,6 @@ func TestJob_InitCrontab(t *testing.T) {
 	if err != nil {
 		t.Log(err)
 	}
-	t.Logf("%+v", job)
 	t.Log(job.nextTime)
 	_, err = job.Next(time.Minute)
 	if err != nil {
@@ -59,7 +57,6 @@ func TestJob_Next(t *testing.T) {
 		t.Log(err)
 		return
 	}
-	t.Logf("%+v", job)
 	t.Logf("%+v", slot)
 	t.Log(job.nextTime)
 }

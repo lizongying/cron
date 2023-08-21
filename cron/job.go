@@ -2,7 +2,6 @@ package cron
 
 import (
 	"errors"
-	"fmt"
 	"math"
 	"regexp"
 	"strconv"
@@ -10,7 +9,7 @@ import (
 	"time"
 )
 
-type Callback func(id int, meta any, time time.Time)
+type Callback func(id int, meta any)
 
 type RunType int
 
@@ -347,7 +346,6 @@ func (j *Job) Next(interval time.Duration) (slot int, err error) {
 	} else {
 		now, err = j.clock.NextWithWeek()
 		if err != nil {
-			fmt.Println(err)
 			return
 		}
 	}

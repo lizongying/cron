@@ -1,24 +1,26 @@
 package cron
 
 import (
-	"log"
-	"os"
 	"testing"
 )
 
 func TestWithSecond(t *testing.T) {
 	tw := New(WithIntervalSecond())
-	t.Logf("%+v", tw)
+	t.Log("slotCount", tw.slotCount)
 }
 
 func TestWithMinute(t *testing.T) {
 	tw := New(WithIntervalMinute())
-	t.Logf("%+v", tw)
+	t.Log("slotCount", tw.slotCount)
 }
 
 func TestWithLogger(t *testing.T) {
-	var logger Logger
-	logger = log.New(os.Stdout, "", log.Ldate|log.Ltime|log.Lshortfile)
+	logger := NewLoggerStdout()
 	tw := New(WithLogger(logger))
-	t.Logf("%+v", tw)
+	t.Log("logger", tw.logger)
+}
+
+func TestWithLoggerStdout(t *testing.T) {
+	tw := New(WithLoggerStdout())
+	t.Log("logger", tw.logger)
 }

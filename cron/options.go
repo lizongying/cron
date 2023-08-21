@@ -1,8 +1,6 @@
 package cron
 
 import (
-	"log"
-	"os"
 	"time"
 )
 
@@ -30,8 +28,6 @@ func WithLogger(logger Logger) Options {
 
 func WithLoggerStdout() Options {
 	return func(t *Cron) {
-		var logger Logger
-		logger = log.New(os.Stdout, "", log.Ldate|log.Ltime|log.Llongfile)
-		t.logger = logger
+		t.logger = NewLoggerStdout()
 	}
 }

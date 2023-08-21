@@ -20,10 +20,40 @@ go get -u github.com/lizongying/cron
 
 ## Usage
 
+### job field
+
 * Spec: 定时
-* OnlyOnce: 只执行一次
-* RunIfDelay: 即使超时(超过最大job处理数量)也会执行，否则本次不执行。
-* RunType: now 基于当前时间立即执行; Divisibility 整时运行
+* OnlyOnce: 只执行一次。默认false
+* RunIfDelay: 即使超时(超过最大job处理数量)也会执行，否则本次不执行。默认false
+* RunType: cron.Now 基于当前时间立即执行; cron.Divisibility 整时运行。
+* Id: 必须设置且不能重复。
+* Callback: 回调方法。
+
+### cron options
+
+* WithIntervalSecond 设置时间轮的间隔为秒，即定时任务最小间隔为一秒。此项为非默认设置。
+
+```go
+WithIntervalSecond() Options
+```
+
+* WithIntervalMinute 设置时间轮的间隔为分钟，即定时任务最小间隔为一分钟。此项为默认设置。
+
+```go
+WithIntervalMinute() Options
+```
+
+* WithLogger 设置使用自定义日志
+
+```go
+WithLogger(logger Logger) Options
+```
+
+* WithLoggerStdout 设置日志输出到控制台
+
+```go
+WithLoggerStdout() Options
+```
 
 ### run
 
@@ -32,29 +62,20 @@ package main
 
 import (
 	"github.com/lizongying/cron/cron"
-	"log"
-	"os"
 	"time"
 )
 
 func main() {
-	var logger cron.Logger
-	logger = log.New(os.Stdout, "", log.Ldate|log.Ltime|log.Lshortfile)
-
+	logger := cron.NewLoggerStdout()
 	c := cron.New(cron.WithIntervalSecond(), cron.WithLoggerStdout())
-
-	job := cron.Job{
-		//Spec:     "every 3 seconds",
-		Spec:     "*/3 * * * * *",
-		OnlyOnce: false,
-		RunType:  cron.Divisibility,
-		Id:       1,
-		Callback: func(id int, meta any, t time.Time) {
-			logger.Println(id, meta, t)
+	c.MustAddJob(&cron.Job{
+		Spec: "every 3 seconds",
+		Id:   1,
+		Callback: func(id int, meta any) {
+			logger.Info(id, meta, time.Now())
 		},
-	}
-	c.MustAddJob(&job)
-
+	})
+	logger.Info("now", time.Now())
 	c.MustStart()
 
 	select {}

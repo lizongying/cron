@@ -52,20 +52,20 @@ func New(options ...Options) (c *Cron) {
 
 func (c *Cron) MustStart() {
 	if err := c.Start(); err != nil {
-		c.logger.Println(err)
+		c.logger.Error(err)
 	}
 }
 
 func (c *Cron) Start() (err error) {
 	if c == nil {
 		err = errors.New("cron nil")
-		c.logger.Println(err)
+		c.logger.Error(err)
 		return
 	}
 
 	if c.status == running {
 		err = errors.New("cron already running")
-		c.logger.Println(err)
+		c.logger.Error(err)
 		return
 	}
 
@@ -83,13 +83,13 @@ func (c *Cron) Start() (err error) {
 
 	go func() {
 		defer func() {
-			c.logger.Println("stopped")
+			c.logger.Info("stopped")
 		}()
 
 		slot := GetSlotSinceYear(now, c.interval)
 		jobs := c.slots[slot]
 		if jobs != nil && len(*jobs) > 0 {
-			go c.runJobs(jobs, now)
+			go c.runJobs(jobs)
 		}
 
 		for {
@@ -98,7 +98,7 @@ func (c *Cron) Start() (err error) {
 				slot = GetSlotSinceYear(now, c.interval)
 				jobs = c.slots[slot]
 				if jobs != nil && len(*jobs) > 0 {
-					go c.runJobs(jobs, now)
+					go c.runJobs(jobs)
 				}
 			case <-c.stopChannel:
 				return
@@ -107,11 +107,11 @@ func (c *Cron) Start() (err error) {
 	}()
 
 	c.status = running
-	c.logger.Println("cron started")
+	c.logger.Info("cron started")
 	return
 }
 
-func (c *Cron) runJobs(jobs *map[int]*Job, now time.Time) {
+func (c *Cron) runJobs(jobs *map[int]*Job) {
 	c.locker.Lock()
 	defer c.locker.Unlock()
 
@@ -119,10 +119,10 @@ func (c *Cron) runJobs(jobs *map[int]*Job, now time.Time) {
 		go func(job *Job) {
 			defer func() {
 				if err := recover(); err != nil {
-					c.logger.Println("job run err:", err)
+					c.logger.Error("job run err:", err)
 				}
 			}()
-			job.Callback(job.Id, job.Meta, now)
+			job.Callback(job.Id, job.Meta)
 		}(job)
 		delete(*jobs, job.Id)
 
@@ -131,31 +131,30 @@ func (c *Cron) runJobs(jobs *map[int]*Job, now time.Time) {
 			return
 		}
 
-		err := c.saveJob(job)
-		if err != nil {
-			c.logger.Println(err)
+		if err := c.saveJob(job); err != nil {
+			c.logger.Error(err)
 			continue
 		}
-		c.logger.Println("job next time:", job.Id, job.nextTime)
+		c.logger.Info("job next time:", job.Id, job.nextTime)
 	}
 }
 
 func (c *Cron) MustStop() {
 	if err := c.Stop(); err != nil {
-		c.logger.Println(err)
+		c.logger.Error(err)
 	}
 }
 
 func (c *Cron) Stop() (err error) {
 	if c == nil {
 		err = errors.New("cron nil")
-		c.logger.Println(err)
+		c.logger.Error(err)
 		return
 	}
 
 	if c.status != running {
 		err = errors.New("cron not running")
-		c.logger.Println(err)
+		c.logger.Error(err)
 		return
 	}
 
@@ -163,45 +162,45 @@ func (c *Cron) Stop() (err error) {
 	c.ticker.Stop()
 
 	c.status = ready
-	c.logger.Println("cron stopped")
+	c.logger.Info("cron stopped")
 
 	return
 }
 
 func (c *Cron) MustAddJob(job *Job) {
 	if err := c.AddJob(job); err != nil {
-		c.logger.Println(err)
+		c.logger.Error(err)
 	}
 }
 
 func (c *Cron) AddJob(job *Job) (err error) {
 	if c == nil {
 		err = errors.New("cron nil")
-		c.logger.Println(err)
+		c.logger.Error(err)
 		return
 	}
 
 	if job.Spec == "" {
 		err = errors.New("spect empty")
-		c.logger.Println(err)
+		c.logger.Error(err)
 		return
 	}
 
 	if job.Id == 0 {
 		err = errors.New("id is 0")
-		c.logger.Println(err)
+		c.logger.Error(err)
 		return
 	}
 
 	if job.Callback == nil {
 		err = errors.New("callback is nil")
-		c.logger.Println(err)
+		c.logger.Error(err)
 		return
 	}
 
 	now := time.Now()
 	if err = job.Init(now, c.interval); err != nil {
-		c.logger.Println(err)
+		c.logger.Error(err)
 		return
 	}
 
@@ -209,10 +208,10 @@ func (c *Cron) AddJob(job *Job) (err error) {
 	defer c.locker.Unlock()
 
 	if err = c.saveJob(job); err != nil {
-		c.logger.Println(err)
+		c.logger.Error(err)
 		return
 	}
-	c.logger.Println("job next time:", job.Id, job.nextTime)
+	c.logger.Info("job next time:", job.Id, job.nextTime)
 	return
 }
 
@@ -233,16 +232,22 @@ func (c *Cron) saveJob(job *Job) (err error) {
 	return
 }
 
+func (c *Cron) MustRemoveJob(id int) {
+	if err := c.RemoveJob(id); err != nil {
+		c.logger.Error(err)
+	}
+}
+
 func (c *Cron) RemoveJob(id int) (err error) {
 	if c == nil {
 		err = errors.New("cron nil")
-		c.logger.Println(err)
+		c.logger.Error(err)
 		return
 	}
 
 	if id == 0 {
 		err = errors.New("id 0")
-		c.logger.Println(err)
+		c.logger.Error(err)
 		return
 	}
 
@@ -252,14 +257,14 @@ func (c *Cron) RemoveJob(id int) (err error) {
 	slot, ok := c.jobs[id]
 	if !ok {
 		err = errors.New("job not exists")
-		c.logger.Println(err)
+		c.logger.Error(err)
 		return
 	}
 
 	delete(c.jobs, id)
 	delete(*c.slots[slot], id)
 
-	c.logger.Println("job remove success")
+	c.logger.Info("job remove success")
 
 	return
 }
