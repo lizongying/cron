@@ -1,12 +1,12 @@
 # Cron
 
-基于时间轮实现的定时任务，更好的性能。目前支持crontab格式或`@every 1 second|minute|hour|day|month|week`
+基于时间轮实现的定时任务，更好的性能。目前支持crontab格式或`every 1 second|minute|hour|day|month|week`
 
 [cron](https://github.com/lizongying/cron)
 
 ## Features
 
-* 支持crontab格式或`@every 1 second|minute|hour|day|month|week`，更简单
+* 支持crontab格式或`every 1 second|minute|hour|day|month|week`，更简单
 * 执行时间进行了修正，会在秒/分开始的时候才执行，所以初次执行会有不到1秒/1分的延时
 * 基于时间轮，保证实时性，任务容量会更高些。并发性能是github.com/robfig/cron的百倍以上，且更准时
 * 回调函数可以增加一些参数，更容易调试，使用也更方便
@@ -32,6 +32,7 @@ import (
 	"github.com/lizongying/cron/cron"
 	"log"
 	"os"
+	"time"
 )
 
 func main() {
@@ -41,13 +42,13 @@ func main() {
 	t := cron.New(cron.WithIntervalSecond(), cron.WithLoggerStdout())
 
 	job := cron.Job{
-		//Spec:     "@every 3 seconds",
+		//Spec:     "every 3 seconds",
 		Spec:     "*/3 * * * * *",
 		OnlyOnce: false,
 		RunType:  cron.Divisibility,
 		Id:       1,
-		Callback: func() {
-			logger.Println(1)
+		Callback: func(id int, meta any, t time.Time) {
+			logger.Println(id, meta, t)
 		},
 	}
 	_ = t.AddJob(&job)
@@ -59,6 +60,7 @@ func main() {
 
 	select {}
 }
+
 ```
 
 ## Tips

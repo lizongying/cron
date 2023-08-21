@@ -2,6 +2,7 @@ package cron
 
 import (
 	"testing"
+	"time"
 )
 
 func TestNew(t *testing.T) {
@@ -12,7 +13,7 @@ func TestNew(t *testing.T) {
 func TestCron_AddJobCallbackNil(t *testing.T) {
 	tw := New()
 	job := Job{
-		Spec: "@every 2 seconds",
+		Spec: "every 2 seconds",
 		Id:   1,
 	}
 	err := tw.AddJob(&job)
@@ -25,9 +26,9 @@ func TestCron_AddJobCallbackNil(t *testing.T) {
 func TestCron_AddJobIdNil(t *testing.T) {
 	tw := New()
 	job := Job{
-		Spec: "@every 2 seconds",
+		Spec: "every 2 seconds",
 		Id:   1,
-		Callback: func() {
+		Callback: func(id int, meta any, _ time.Time) {
 			t.Log(1)
 		},
 	}
@@ -42,9 +43,9 @@ func TestCron_AddJobExists(t *testing.T) {
 	var err error
 	tw := New()
 	job := Job{
-		Spec: "@every 2 seconds",
+		Spec: "every 2 seconds",
 		Id:   1,
-		Callback: func() {
+		Callback: func(id int, meta any, _ time.Time) {
 			t.Log(1)
 		},
 	}
@@ -64,9 +65,9 @@ func TestCron_AddJobExists(t *testing.T) {
 func TestCron_AddJob(t *testing.T) {
 	tw := New()
 	job := Job{
-		Spec: "@every 2 seconds",
+		Spec: "every 2 seconds",
 		Id:   1,
-		Callback: func() {
+		Callback: func(id int, meta any, _ time.Time) {
 			t.Log(1)
 		},
 	}

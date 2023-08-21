@@ -19,7 +19,7 @@ const (
 	Divisibility
 )
 
-var reEvery = regexp.MustCompile(`@every\s(\d+)\s(second|minute|hour|day|month|week)s?`)
+var reEvery = regexp.MustCompile(`every\s(\d+)\s(second|minute|hour|day|month|week)s?`)
 var reDash = regexp.MustCompile(`(\d+)-(\d+)`)
 var reSlash = regexp.MustCompile(`\*/(\d+)`)
 

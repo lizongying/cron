@@ -9,7 +9,7 @@ func TestJob_Init(t *testing.T) {
 	now := time.Now()
 	t.Log(now)
 	job := Job{
-		Spec: "@every 2 minutes",
+		Spec: "every 2 minutes",
 	}
 	err := job.Init(now, time.Minute)
 	if err != nil {
@@ -52,7 +52,7 @@ func TestJob_InitCrontab(t *testing.T) {
 func TestJob_Next(t *testing.T) {
 	t.Log(time.Now())
 	job := Job{
-		Spec: "@every 2 seconds",
+		Spec: "every 2 seconds",
 	}
 	slot, err := job.Next(time.Second)
 	if err != nil {
