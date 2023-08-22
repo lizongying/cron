@@ -9,7 +9,7 @@ func TestJob_Init(t *testing.T) {
 	now := time.Now()
 	t.Log(now)
 	job := &Job{}
-	if err := job.Init("every 2 minutes", time.Minute); err != nil {
+	if err := job.Init("every 2 minutes", time.Minute, false); err != nil {
 		t.Log(err)
 		return
 	}
@@ -30,7 +30,7 @@ func TestJob_InitCrontab(t *testing.T) {
 	//t.Log(job.nextTime)
 
 	job = &Job{}
-	if err = job.Init("* 1-10 1,2,3 4 0-6", time.Minute); err != nil {
+	if err = job.Init("* 1-10 1,2,3 4 0-6", time.Minute, false); err != nil {
 		t.Log(err)
 		return
 	}
@@ -47,7 +47,7 @@ func TestJob_Next(t *testing.T) {
 	now := time.Now()
 	t.Log(now)
 	job := &Job{}
-	if err = job.Init("every 2 seconds", time.Second); err != nil {
+	if err = job.Init("every 2 seconds", time.Second, false); err != nil {
 		t.Log(err)
 		return
 	}

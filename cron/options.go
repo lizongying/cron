@@ -29,3 +29,9 @@ func WithStdout() Options {
 		t.logger = NewLoggerStdout()
 	}
 }
+
+func WithDivisibility() Options {
+	return func(t *Cron) {
+		t.divisibility = true
+	}
+}

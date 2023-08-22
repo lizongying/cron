@@ -8,15 +8,16 @@ import (
 )
 
 type Cron struct {
-	id          atomic.Uint32
-	interval    time.Duration
-	ticker      *time.Ticker
-	jobs        []*Job
-	stopChannel chan struct{}
-	running     bool
-	locker      sync.Mutex
-	logger      Logger
-	lastMoment  uint32
+	id           atomic.Uint32
+	interval     time.Duration
+	ticker       *time.Ticker
+	jobs         []*Job
+	stopChannel  chan struct{}
+	running      bool
+	locker       sync.Mutex
+	logger       Logger
+	lastMoment   uint32
+	divisibility bool
 }
 
 func New(options ...Options) (c *Cron) {
@@ -162,16 +163,16 @@ func (c *Cron) Stop() (err error) {
 	return
 }
 
-func (c *Cron) MustAddJob(spec string, job *Job) (id uint32) {
+func (c *Cron) MustAddJob(spec string, callback Callback) (id uint32) {
 	var err error
-	id, err = c.AddJob(spec, job)
+	id, err = c.AddJob(spec, callback)
 	if err != nil {
 		c.logger.Error(err)
 	}
 	return
 }
 
-func (c *Cron) AddJob(spec string, job *Job) (id uint32, err error) {
+func (c *Cron) AddJob(spec string, callback Callback) (id uint32, err error) {
 	if c == nil {
 		err = errors.New("cron nil")
 		c.logger.Error(err)
@@ -184,13 +185,17 @@ func (c *Cron) AddJob(spec string, job *Job) (id uint32, err error) {
 		return
 	}
 
-	if job.Callback == nil {
+	if callback == nil {
 		err = errors.New("callback is nil")
 		c.logger.Error(err)
 		return
 	}
 
-	if err = job.Init(spec, c.interval); err != nil {
+	job := &Job{
+		Callback: callback,
+	}
+
+	if err = job.Init(spec, c.interval, c.divisibility); err != nil {
 		c.logger.Error(err)
 		return
 	}

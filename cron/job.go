@@ -41,10 +41,8 @@ var parser = []element{
 }
 
 type Job struct {
-	Deleted      bool
-	Divisibility bool
-	Callback     Callback
-
+	Callback   Callback
+	Deleted    bool
 	slot       uint32
 	nextTime   time.Time
 	clock      *Clock
@@ -56,7 +54,7 @@ func (j *Job) Slot() uint32 {
 	return j.slot
 }
 
-func (j *Job) Init(spec string, interval time.Duration) (err error) {
+func (j *Job) Init(spec string, interval time.Duration, divisibility bool) (err error) {
 	now := time.Now()
 
 	if interval == time.Second {
@@ -87,7 +85,7 @@ func (j *Job) Init(spec string, interval time.Duration) (err error) {
 				err = errors.New("parse err")
 				return
 			}
-			if j.Divisibility {
+			if divisibility {
 				now = now.Add(-time.Second * time.Duration(now.Second()%v))
 			}
 		} else if r[2] == "minute" {
@@ -95,7 +93,7 @@ func (j *Job) Init(spec string, interval time.Duration) (err error) {
 				err = errors.New("parse err")
 				return
 			}
-			if j.Divisibility {
+			if divisibility {
 				now = now.Add(-time.Second * time.Duration(now.Second()))
 				now = now.Add(-time.Minute * time.Duration(now.Minute()%v))
 			}
@@ -104,7 +102,7 @@ func (j *Job) Init(spec string, interval time.Duration) (err error) {
 				err = errors.New("parse err")
 				return
 			}
-			if j.Divisibility {
+			if divisibility {
 				now = now.Add(-time.Second * time.Duration(now.Second()))
 				now = now.Add(-time.Minute * time.Duration(now.Minute()))
 				now = now.Add(-time.Hour * time.Duration(now.Hour()%v))
@@ -114,7 +112,7 @@ func (j *Job) Init(spec string, interval time.Duration) (err error) {
 				err = errors.New("parse err")
 				return
 			}
-			if j.Divisibility {
+			if divisibility {
 				now = now.Add(-time.Second * time.Duration(now.Second()))
 				now = now.Add(-time.Minute * time.Duration(now.Minute()))
 				now = now.Add(-time.Hour * time.Duration(now.Hour()))
@@ -125,7 +123,7 @@ func (j *Job) Init(spec string, interval time.Duration) (err error) {
 				err = errors.New("parse err")
 				return
 			}
-			if j.Divisibility {
+			if divisibility {
 				now = now.Add(-time.Second * time.Duration(now.Second()))
 				now = now.Add(-time.Minute * time.Duration(now.Minute()))
 				now = now.Add(-time.Hour * time.Duration(now.Hour()))
@@ -140,7 +138,7 @@ func (j *Job) Init(spec string, interval time.Duration) (err error) {
 
 			// default run on sunday
 			// monday now = now.AddDate(0, 0, -int(now.Weekday())%7+1)
-			if j.Divisibility {
+			if divisibility {
 				now = now.Add(-time.Second * time.Duration(now.Second()))
 				now = now.Add(-time.Minute * time.Duration(now.Minute()))
 				now = now.Add(-time.Hour * time.Duration(now.Hour()))
@@ -203,7 +201,7 @@ func (j *Job) Init(spec string, interval time.Duration) (err error) {
 							err = errors.New("parse err")
 							break LOOP1
 						}
-						if j.Divisibility {
+						if divisibility {
 							now = now.Add(-time.Second * time.Duration(now.Second()%every))
 						}
 					} else if i == 1 {
@@ -211,7 +209,7 @@ func (j *Job) Init(spec string, interval time.Duration) (err error) {
 							err = errors.New("parse err")
 							break LOOP1
 						}
-						if j.Divisibility {
+						if divisibility {
 							now = now.Add(-time.Second * time.Duration(now.Second()))
 							now = now.Add(-time.Minute * time.Duration(now.Minute()%every))
 						}
@@ -220,7 +218,7 @@ func (j *Job) Init(spec string, interval time.Duration) (err error) {
 							err = errors.New("parse err")
 							break LOOP1
 						}
-						if j.Divisibility {
+						if divisibility {
 							now = now.Add(-time.Second * time.Duration(now.Second()))
 							now = now.Add(-time.Minute * time.Duration(now.Minute()))
 							now = now.Add(-time.Hour * time.Duration(now.Hour()%every))
@@ -230,7 +228,7 @@ func (j *Job) Init(spec string, interval time.Duration) (err error) {
 							err = errors.New("parse err")
 							break LOOP1
 						}
-						if j.Divisibility {
+						if divisibility {
 							now = now.Add(-time.Second * time.Duration(now.Second()))
 							now = now.Add(-time.Minute * time.Duration(now.Minute()))
 							now = now.Add(-time.Hour * time.Duration(now.Hour()))
@@ -241,7 +239,7 @@ func (j *Job) Init(spec string, interval time.Duration) (err error) {
 							err = errors.New("parse err")
 							break LOOP1
 						}
-						if j.Divisibility {
+						if divisibility {
 							now = now.Add(-time.Second * time.Duration(now.Second()))
 							now = now.Add(-time.Minute * time.Duration(now.Minute()))
 							now = now.Add(-time.Hour * time.Duration(now.Hour()))
@@ -256,7 +254,7 @@ func (j *Job) Init(spec string, interval time.Duration) (err error) {
 
 						// default run on sunday
 						// monday now = now.AddDate(0, 0, -int(now.Weekday())%7+1)
-						if j.Divisibility {
+						if divisibility {
 							now = now.Add(-time.Second * time.Duration(now.Second()))
 							now = now.Add(-time.Minute * time.Duration(now.Minute()))
 							now = now.Add(-time.Hour * time.Duration(now.Hour()))
@@ -270,7 +268,7 @@ func (j *Job) Init(spec string, interval time.Duration) (err error) {
 					begin := parser[i].min
 					end := parser[i].max + 1
 					for ii := begin; ii < end; ii++ {
-						if j.Divisibility {
+						if divisibility {
 							if ii%every == 0 {
 								list[i] |= 1 << ii
 							}

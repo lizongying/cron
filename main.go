@@ -12,17 +12,15 @@ func main() {
 	c := cron.New(cron.WithSecond())
 	for i := 0; i < 5000000; i++ {
 		v := i
-		_ = c.MustAddJob("every 3 second", &cron.Job{
-			Callback: func() {
-				if v%5000000 == 0 {
-					now := time.Now()
-					log.Println(v, now.Sub(begin))
-					begin = now
-					var mem runtime.MemStats
-					runtime.ReadMemStats(&mem)
-					log.Printf("TotalAlloc = %v MiB\n", mem.TotalAlloc/1024/1024)
-				}
-			},
+		_ = c.MustAddJob("every 3 second", func() {
+			if v%5000000 == 0 {
+				now := time.Now()
+				log.Println(v, now.Sub(begin))
+				begin = now
+				var mem runtime.MemStats
+				runtime.ReadMemStats(&mem)
+				log.Printf("TotalAlloc = %v MiB\n", mem.TotalAlloc/1024/1024)
+			}
 		})
 	}
 	c.MustStart()

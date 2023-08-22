@@ -50,6 +50,13 @@ WithLogger(logger Logger) Options
 WithStdout() Options
 ```
 
+* WithDivisibility 设置整点执行
+
+```go
+WithDivisibility() Options
+
+```
+
 ### run
 
 ```go
@@ -61,14 +68,13 @@ import (
 )
 
 func main() {
+	begin := time.Now()
 	logger := cron.NewLoggerStdout()
 	c := cron.New(cron.WithSecond(), cron.WithStdout())
-	c.MustAddJob("every 3 seconds", &cron.Job{
-		Callback: func() {
-			logger.Info(time.Now())
-		},
+	id := c.MustAddJob("every 3 seconds", func() {
+		logger.Info(time.Now().Sub(begin))
 	})
-	logger.Info("now", time.Now())
+	logger.Info("id", id)
 	c.MustStart()
 	select {}
 }
