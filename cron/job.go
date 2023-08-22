@@ -42,8 +42,6 @@ var parser = []element{
 }
 
 type Job struct {
-	OnlyOnce     bool
-	RunIfDelay   bool
 	Divisibility bool
 	Callback     Callback
 
@@ -370,19 +368,6 @@ func (j *Job) Next(interval time.Duration) (slot uint32, err error) {
 		now, err = j.clock.NextWithWeek()
 		if err != nil {
 			return
-		}
-	}
-
-	if interval == time.Minute {
-		now = time.Unix(now.Unix()-int64(now.Second()), 0)
-	}
-
-	if now.Sub(time.Now()) < interval {
-		if j.RunIfDelay {
-			now = time.Now().Add(interval)
-		} else {
-			j.nextTime = now
-			return j.Next(interval)
 		}
 	}
 

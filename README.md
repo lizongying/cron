@@ -21,8 +21,6 @@ go get -u github.com/lizongying/cron
 
 ### job field
 
-* OnlyOnce: 只运行一次。默认false
-* RunIfDelay: 即使超时(超过最大job处理数量)也会执行，否则本次不执行。默认false
 * Divisibility: 整时执行，默认false。
 * Callback: 回调方法。
 

@@ -118,10 +118,6 @@ func (c *Cron) runJobs(jobs *map[uint32]*Job) {
 			job.Callback()
 		}(job)
 		delete(*jobs, id)
-		if job.OnlyOnce {
-			delete(c.jobs, id)
-			return
-		}
 
 		if err := c.saveJob(id, job); err != nil {
 			c.logger.Error(err)
