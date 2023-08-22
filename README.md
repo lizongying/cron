@@ -6,7 +6,7 @@
 
 ## Features
 
-* 基于时间轮实现，更准时，并发性能是github.com/robfig/cron的百倍以上
+* 基于时间轮实现，更准时，并发性能更高。
 * 支持crontab或`every 1 second|minute|hour|day|month|week`格式
 * 修正执行时间，会在整秒/分开始的时候才执行，所以初次执行会有不到1秒/1分的延时
 * 支持立即或整时执行
@@ -93,6 +93,7 @@ func main() {
 
 ## Tips
 
-* 建议秒级别最大任务控制在1,000,000(Apple M1 Pro, 32 GB))以内，防止任务超时。可能支持更大数量，请自行测试。
+* 建议秒级别最大任务控制在5,000,000(Apple M1 Pro, 32 GB))以内，防止任务超时。可能支持更大数量，请自行测试。
+* 经测试，内存和并发性能均优于github.com/robfig/cron
 
 ## TODO

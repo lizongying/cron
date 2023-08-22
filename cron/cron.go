@@ -11,18 +11,16 @@ type Cron struct {
 	id          atomic.Uint32
 	interval    time.Duration
 	ticker      *time.Ticker
-	slotCount   int
-	slots       []*map[uint32]*Job // [slot][jobId]job
-	jobs        map[uint32]uint32  // [jobId]slot
+	jobs        []*Job
 	stopChannel chan struct{}
 	running     bool
 	locker      sync.Mutex
 	logger      Logger
+	lastMoment  uint32
 }
 
 func New(options ...Options) (c *Cron) {
 	c = &Cron{
-		jobs:        make(map[uint32]uint32),
 		stopChannel: make(chan struct{}),
 	}
 
@@ -32,13 +30,11 @@ func New(options ...Options) (c *Cron) {
 
 	if c.interval == 0 {
 		c.interval = time.Minute
-		c.slotCount = 60 * 24 * 366
 	}
+
 	if c.logger == nil {
 		c.logger = Logger(&LoggerNothing{})
 	}
-
-	c.slots = make([]*map[uint32]*Job, c.slotCount)
 
 	return
 }
@@ -62,36 +58,55 @@ func (c *Cron) Start() (err error) {
 		return
 	}
 
-	now := time.Now()
-	var nextTime time.Time
-	if c.interval == time.Second {
-		nextTime = time.Unix(now.Unix(), 0).Add(time.Second)
-		time.Sleep(time.Duration(nextTime.UnixNano() - now.UnixNano()))
-	} else {
-		nextTime = time.Unix(now.Unix()-int64(now.Second()), 0).Add(time.Minute)
-		time.Sleep(time.Duration(nextTime.UnixNano() - now.UnixNano()))
-	}
-	now = nextTime
-	c.ticker = time.NewTicker(c.interval)
-
 	go func() {
 		defer func() {
 			c.logger.Info("stopped")
 		}()
 
-		slot := GetSlotSinceYear(now, c.interval)
-		jobs := c.slots[slot]
-		if jobs != nil && len(*jobs) > 0 {
-			go c.runJobs(jobs)
+		c.lastMoment = LastMoment(c.interval)
+
+		now := time.Now()
+		var nextTime time.Time
+		if c.interval == time.Second {
+			nextTime = time.Unix(now.Unix(), 0).Add(time.Second)
+			time.Sleep(time.Duration(nextTime.UnixNano() - now.UnixNano()))
+		} else {
+			nextTime = time.Unix(now.Unix()-int64(now.Second()), 0).Add(time.Minute)
+			time.Sleep(time.Duration(nextTime.UnixNano() - now.UnixNano()))
+		}
+		now = nextTime
+		c.ticker = time.NewTicker(c.interval)
+
+		slot := SlotSinceYear(now, c.interval)
+		for _, job := range c.jobs {
+			if job.Deleted {
+				continue
+			}
+			if err = job.Next(c.interval); err != nil {
+				c.logger.Error(err)
+				continue
+			}
+			if job.Slot() == slot {
+				go c.runJob(job)
+			}
 		}
 
 		for {
 			select {
 			case now = <-c.ticker.C:
-				slot = GetSlotSinceYear(now, c.interval)
-				jobs = c.slots[slot]
-				if jobs != nil && len(*jobs) > 0 {
-					go c.runJobs(jobs)
+				if slot == c.lastMoment {
+					slot = 0
+					c.lastMoment = LastMoment(c.interval)
+				} else {
+					slot++
+				}
+				for _, job := range c.jobs {
+					if job.Deleted {
+						continue
+					}
+					if job.Slot() == slot {
+						go c.runJob(job)
+					}
 				}
 			case <-c.stopChannel:
 				return
@@ -104,27 +119,19 @@ func (c *Cron) Start() (err error) {
 	return
 }
 
-func (c *Cron) runJobs(jobs *map[uint32]*Job) {
-	c.locker.Lock()
-	defer c.locker.Unlock()
-
-	for id, job := range *jobs {
-		go func(job *Job) {
-			defer func() {
-				if err := recover(); err != nil {
-					c.logger.Error("job run err:", err)
-				}
-			}()
-			job.Callback()
-		}(job)
-		delete(*jobs, id)
-
-		if err := c.saveJob(id, job); err != nil {
-			c.logger.Error(err)
-			continue
+func (c *Cron) runJob(job *Job) {
+	defer func() {
+		if err := recover(); err != nil {
+			c.logger.Error("job run err:", err)
 		}
-		c.logger.Info("job next time:", id, job.nextTime)
-	}
+	}()
+	go func() {
+		err := job.Next(c.interval)
+		if err != nil {
+			c.logger.Error(err)
+		}
+	}()
+	job.Callback()
 }
 
 func (c *Cron) MustStop() {
@@ -188,33 +195,13 @@ func (c *Cron) AddJob(spec string, job *Job) (id uint32, err error) {
 		return
 	}
 
-	id = c.id.Add(1)
-
 	c.locker.Lock()
 	defer c.locker.Unlock()
 
-	if err = c.saveJob(id, job); err != nil {
-		c.logger.Error(err)
-		return
-	}
-	c.logger.Info("job next time:", id, job.nextTime)
-	return
-}
+	c.jobs = append(c.jobs, job)
 
-func (c *Cron) saveJob(id uint32, job *Job) (err error) {
-	slot, err := job.Next(c.interval)
-	if err != nil {
-		return
-	}
-
-	if c.slots[slot] == nil {
-		jobs := make(map[uint32]*Job)
-		c.slots[slot] = &jobs
-	}
-
-	(*c.slots[slot])[id] = job
-	c.jobs[id] = slot
-
+	c.logger.Info("job next time:", c.id.Load(), job.nextTime)
+	c.id.Add(1)
 	return
 }
 
@@ -237,20 +224,16 @@ func (c *Cron) RemoveJob(id uint32) (err error) {
 		return
 	}
 
-	c.locker.Lock()
-	defer c.locker.Unlock()
-
-	slot, ok := c.jobs[id]
-	if !ok {
+	if id > c.id.Load() {
 		err = errors.New("job not exists")
 		c.logger.Error(err)
 		return
 	}
 
-	delete(c.jobs, id)
-	delete(*c.slots[slot], id)
+	c.locker.Lock()
+	defer c.locker.Unlock()
 
+	c.jobs[id].Deleted = true
 	c.logger.Info("job remove success")
-
 	return
 }

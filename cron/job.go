@@ -2,7 +2,6 @@ package cron
 
 import (
 	"errors"
-	"math"
 	"regexp"
 	"strconv"
 	"strings"
@@ -42,13 +41,19 @@ var parser = []element{
 }
 
 type Job struct {
+	Deleted      bool
 	Divisibility bool
 	Callback     Callback
 
+	slot       uint32
 	nextTime   time.Time
 	clock      *Clock
 	everyType  EveryType
 	everyValue uint8
+}
+
+func (j *Job) Slot() uint32 {
+	return j.slot
 }
 
 func (j *Job) Init(spec string, interval time.Duration) (err error) {
@@ -347,7 +352,7 @@ func (j *Job) Init(spec string, interval time.Duration) (err error) {
 	return
 }
 
-func (j *Job) Next(interval time.Duration) (slot uint32, err error) {
+func (j *Job) Next(interval time.Duration) (err error) {
 	now := j.nextTime
 	if j.everyValue > 0 {
 		switch j.everyType {
@@ -373,19 +378,10 @@ func (j *Job) Next(interval time.Duration) (slot uint32, err error) {
 
 	j.nextTime = now
 
-	slot = GetSlotSinceYear(now, interval)
-
-	return
-}
-
-func GetSlotSinceYear(now time.Time, interval time.Duration) (slot uint32) {
-	year, _ := time.ParseInLocation("2006", now.Format("2006"), time.Local)
-	if interval == time.Minute {
-		slot = uint32(math.Floor(now.Sub(year).Minutes()))
-
-		return
+	if now.Sub(time.Now()) < 0 {
+		return j.Next(interval)
 	}
-	slot = uint32(math.Floor(now.Sub(year).Seconds()))
 
+	j.slot = SlotSinceYear(now, interval)
 	return
 }

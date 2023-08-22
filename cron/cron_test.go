@@ -6,7 +6,7 @@ import (
 
 func TestNew(t *testing.T) {
 	tw := New()
-	t.Log("slotCount", tw.slotCount)
+	t.Log("running", tw.running)
 }
 
 func TestCron_AddJobCallbackNil(t *testing.T) {
@@ -91,7 +91,7 @@ func TestCron_Stop(t *testing.T) {
 		t.Log(err)
 		return
 	}
-	t.Log("slotCount", tw.slotCount)
+	t.Log("running", tw.running)
 }
 
 func TestCron_StartWhenRunning(t *testing.T) {

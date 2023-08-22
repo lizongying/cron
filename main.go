@@ -2,23 +2,30 @@ package main
 
 import (
 	"github.com/lizongying/cron/cron"
+	"log"
+	"runtime"
 	"time"
 )
 
 func main() {
-	logger := cron.NewLoggerStdout()
+	begin := time.Now()
 	c := cron.New(cron.WithSecond())
-	for i := 0; i < 1000000; i++ {
+	for i := 0; i < 5000000; i++ {
 		v := i
-		c.MustAddJob("*/3 * * * * *", &cron.Job{
+		_ = c.MustAddJob("every 3 second", &cron.Job{
 			Callback: func() {
-				if (v+1)%1000000 == 0 {
-					logger.Info(v, time.Now())
+				if v%5000000 == 0 {
+					now := time.Now()
+					log.Println(v, now.Sub(begin))
+					begin = now
+					var mem runtime.MemStats
+					runtime.ReadMemStats(&mem)
+					log.Printf("TotalAlloc = %v MiB\n", mem.TotalAlloc/1024/1024)
 				}
 			},
 		})
 	}
-	logger.Info("now", time.Now())
 	c.MustStart()
+	log.Println("now", begin)
 	select {}
 }
