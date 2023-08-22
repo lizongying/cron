@@ -5,12 +5,12 @@ import (
 )
 
 func TestWithSecond(t *testing.T) {
-	tw := New(WithIntervalSecond())
+	tw := New(WithSecond())
 	t.Log("slotCount", tw.slotCount)
 }
 
 func TestWithMinute(t *testing.T) {
-	tw := New(WithIntervalMinute())
+	tw := New(WithMinute())
 	t.Log("slotCount", tw.slotCount)
 }
 
@@ -20,7 +20,7 @@ func TestWithLogger(t *testing.T) {
 	t.Log("logger", tw.logger)
 }
 
-func TestWithLoggerStdout(t *testing.T) {
-	tw := New(WithLoggerStdout())
+func TestWithStdout(t *testing.T) {
+	tw := New(WithStdout())
 	t.Log("logger", tw.logger)
 }

@@ -3,31 +3,26 @@ package cron
 import (
 	"errors"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
-type status int
-
-const (
-	ready status = iota
-	running
-)
-
 type Cron struct {
+	id          atomic.Uint32
 	interval    time.Duration
 	ticker      *time.Ticker
 	slotCount   int
-	slots       []*map[int]*Job // [slot][jobId]job
-	jobs        map[int]int     // [jobId]slot
+	slots       []*map[uint32]*Job // [slot][jobId]job
+	jobs        map[uint32]uint32  // [jobId]slot
 	stopChannel chan struct{}
-	status      status
+	running     bool
 	locker      sync.Mutex
 	logger      Logger
 }
 
 func New(options ...Options) (c *Cron) {
 	c = &Cron{
-		jobs:        make(map[int]int),
+		jobs:        make(map[uint32]uint32),
 		stopChannel: make(chan struct{}),
 	}
 
@@ -40,12 +35,10 @@ func New(options ...Options) (c *Cron) {
 		c.slotCount = 60 * 24 * 366
 	}
 	if c.logger == nil {
-		var logger Logger
-		logger = &LoggerNothing{}
-		c.logger = logger
+		c.logger = Logger(&LoggerNothing{})
 	}
 
-	c.slots = make([]*map[int]*Job, c.slotCount)
+	c.slots = make([]*map[uint32]*Job, c.slotCount)
 
 	return
 }
@@ -63,7 +56,7 @@ func (c *Cron) Start() (err error) {
 		return
 	}
 
-	if c.status == running {
+	if c.running {
 		err = errors.New("cron already running")
 		c.logger.Error(err)
 		return
@@ -106,36 +99,35 @@ func (c *Cron) Start() (err error) {
 		}
 	}()
 
-	c.status = running
+	c.running = true
 	c.logger.Info("cron started")
 	return
 }
 
-func (c *Cron) runJobs(jobs *map[int]*Job) {
+func (c *Cron) runJobs(jobs *map[uint32]*Job) {
 	c.locker.Lock()
 	defer c.locker.Unlock()
 
-	for _, job := range *jobs {
+	for id, job := range *jobs {
 		go func(job *Job) {
 			defer func() {
 				if err := recover(); err != nil {
 					c.logger.Error("job run err:", err)
 				}
 			}()
-			job.Callback(job.Id, job.Meta)
+			job.Callback()
 		}(job)
-		delete(*jobs, job.Id)
-
+		delete(*jobs, id)
 		if job.OnlyOnce {
-			delete(c.jobs, job.Id)
+			delete(c.jobs, id)
 			return
 		}
 
-		if err := c.saveJob(job); err != nil {
+		if err := c.saveJob(id, job); err != nil {
 			c.logger.Error(err)
 			continue
 		}
-		c.logger.Info("job next time:", job.Id, job.nextTime)
+		c.logger.Info("job next time:", id, job.nextTime)
 	}
 }
 
@@ -152,7 +144,7 @@ func (c *Cron) Stop() (err error) {
 		return
 	}
 
-	if c.status != running {
+	if !c.running {
 		err = errors.New("cron not running")
 		c.logger.Error(err)
 		return
@@ -161,33 +153,30 @@ func (c *Cron) Stop() (err error) {
 	close(c.stopChannel)
 	c.ticker.Stop()
 
-	c.status = ready
+	c.running = false
 	c.logger.Info("cron stopped")
 
 	return
 }
 
-func (c *Cron) MustAddJob(job *Job) {
-	if err := c.AddJob(job); err != nil {
+func (c *Cron) MustAddJob(spec string, job *Job) (id uint32) {
+	var err error
+	id, err = c.AddJob(spec, job)
+	if err != nil {
 		c.logger.Error(err)
 	}
+	return
 }
 
-func (c *Cron) AddJob(job *Job) (err error) {
+func (c *Cron) AddJob(spec string, job *Job) (id uint32, err error) {
 	if c == nil {
 		err = errors.New("cron nil")
 		c.logger.Error(err)
 		return
 	}
 
-	if job.Spec == "" {
-		err = errors.New("spect empty")
-		c.logger.Error(err)
-		return
-	}
-
-	if job.Id == 0 {
-		err = errors.New("id is 0")
+	if spec == "" {
+		err = errors.New("spec empty")
 		c.logger.Error(err)
 		return
 	}
@@ -198,47 +187,48 @@ func (c *Cron) AddJob(job *Job) (err error) {
 		return
 	}
 
-	now := time.Now()
-	if err = job.Init(now, c.interval); err != nil {
+	if err = job.Init(spec, c.interval); err != nil {
 		c.logger.Error(err)
 		return
 	}
+
+	id = c.id.Add(1)
 
 	c.locker.Lock()
 	defer c.locker.Unlock()
 
-	if err = c.saveJob(job); err != nil {
+	if err = c.saveJob(id, job); err != nil {
 		c.logger.Error(err)
 		return
 	}
-	c.logger.Info("job next time:", job.Id, job.nextTime)
+	c.logger.Info("job next time:", id, job.nextTime)
 	return
 }
 
-func (c *Cron) saveJob(job *Job) (err error) {
+func (c *Cron) saveJob(id uint32, job *Job) (err error) {
 	slot, err := job.Next(c.interval)
 	if err != nil {
 		return
 	}
 
 	if c.slots[slot] == nil {
-		jobs := make(map[int]*Job)
+		jobs := make(map[uint32]*Job)
 		c.slots[slot] = &jobs
 	}
 
-	(*c.slots[slot])[job.Id] = job
-	c.jobs[job.Id] = slot
+	(*c.slots[slot])[id] = job
+	c.jobs[id] = slot
 
 	return
 }
 
-func (c *Cron) MustRemoveJob(id int) {
+func (c *Cron) MustRemoveJob(id uint32) {
 	if err := c.RemoveJob(id); err != nil {
 		c.logger.Error(err)
 	}
 }
 
-func (c *Cron) RemoveJob(id int) (err error) {
+func (c *Cron) RemoveJob(id uint32) (err error) {
 	if c == nil {
 		err = errors.New("cron nil")
 		c.logger.Error(err)

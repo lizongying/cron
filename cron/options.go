@@ -6,14 +6,14 @@ import (
 
 type Options func(t *Cron)
 
-func WithIntervalSecond() Options {
+func WithSecond() Options {
 	return func(t *Cron) {
 		t.interval = time.Second
 		t.slotCount = 60 * 60 * 24 * 366
 	}
 }
 
-func WithIntervalMinute() Options {
+func WithMinute() Options {
 	return func(t *Cron) {
 		t.interval = time.Minute
 		t.slotCount = 60 * 24 * 366
@@ -26,7 +26,7 @@ func WithLogger(logger Logger) Options {
 	}
 }
 
-func WithLoggerStdout() Options {
+func WithStdout() Options {
 	return func(t *Cron) {
 		t.logger = NewLoggerStdout()
 	}

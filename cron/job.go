@@ -9,13 +9,17 @@ import (
 	"time"
 )
 
-type Callback func(id int, meta any)
+type Callback func()
 
-type RunType int
+type EveryType uint8
 
 const (
-	Now RunType = iota
-	Divisibility
+	second EveryType = iota
+	minute
+	hour
+	day
+	month
+	week
 )
 
 var reEvery = regexp.MustCompile(`every\s(\d+)\s(second|minute|hour|day|month|week)s?`)
@@ -38,28 +42,27 @@ var parser = []element{
 }
 
 type Job struct {
-	Spec       string
-	OnlyOnce   bool
-	RunIfDelay bool
-	RunType    RunType
-	Id         int
-	Meta       any
-	Callback   Callback
+	OnlyOnce     bool
+	RunIfDelay   bool
+	Divisibility bool
+	Callback     Callback
 
 	nextTime   time.Time
 	clock      *Clock
-	everyName  string
-	everyValue int
+	everyType  EveryType
+	everyValue uint8
 }
 
-func (j *Job) Init(now time.Time, interval time.Duration) (err error) {
+func (j *Job) Init(spec string, interval time.Duration) (err error) {
+	now := time.Now()
+
 	if interval == time.Second {
 		now = time.Unix(now.Unix(), 0)
 	} else {
 		now = time.Unix(now.Unix()-int64(now.Second()), 0)
 	}
 
-	r := reEvery.FindStringSubmatch(j.Spec)
+	r := reEvery.FindStringSubmatch(spec)
 	if len(r) == 3 {
 		if strings.Index("second|minute|hour|day|month|week", r[2]) < 0 {
 			err = errors.New("parse err")
@@ -73,11 +76,15 @@ func (j *Job) Init(now time.Time, interval time.Duration) (err error) {
 		}
 
 		if r[2] == "second" {
+			if interval == time.Minute {
+				err = errors.New("when the interval is in minutes, the timer cannot be set in seconds")
+				return
+			}
 			if v > 59 {
 				err = errors.New("parse err")
 				return
 			}
-			if j.RunType == Divisibility {
+			if j.Divisibility {
 				now = now.Add(-time.Second * time.Duration(now.Second()%v))
 			}
 		} else if r[2] == "minute" {
@@ -85,7 +92,7 @@ func (j *Job) Init(now time.Time, interval time.Duration) (err error) {
 				err = errors.New("parse err")
 				return
 			}
-			if j.RunType == Divisibility {
+			if j.Divisibility {
 				now = now.Add(-time.Second * time.Duration(now.Second()))
 				now = now.Add(-time.Minute * time.Duration(now.Minute()%v))
 			}
@@ -94,7 +101,7 @@ func (j *Job) Init(now time.Time, interval time.Duration) (err error) {
 				err = errors.New("parse err")
 				return
 			}
-			if j.RunType == Divisibility {
+			if j.Divisibility {
 				now = now.Add(-time.Second * time.Duration(now.Second()))
 				now = now.Add(-time.Minute * time.Duration(now.Minute()))
 				now = now.Add(-time.Hour * time.Duration(now.Hour()%v))
@@ -104,7 +111,7 @@ func (j *Job) Init(now time.Time, interval time.Duration) (err error) {
 				err = errors.New("parse err")
 				return
 			}
-			if j.RunType == Divisibility {
+			if j.Divisibility {
 				now = now.Add(-time.Second * time.Duration(now.Second()))
 				now = now.Add(-time.Minute * time.Duration(now.Minute()))
 				now = now.Add(-time.Hour * time.Duration(now.Hour()))
@@ -115,7 +122,7 @@ func (j *Job) Init(now time.Time, interval time.Duration) (err error) {
 				err = errors.New("parse err")
 				return
 			}
-			if j.RunType == Divisibility {
+			if j.Divisibility {
 				now = now.Add(-time.Second * time.Duration(now.Second()))
 				now = now.Add(-time.Minute * time.Duration(now.Minute()))
 				now = now.Add(-time.Hour * time.Duration(now.Hour()))
@@ -130,7 +137,7 @@ func (j *Job) Init(now time.Time, interval time.Duration) (err error) {
 
 			// default run on sunday
 			// monday now = now.AddDate(0, 0, -int(now.Weekday())%7+1)
-			if j.RunType == Divisibility {
+			if j.Divisibility {
 				now = now.Add(-time.Second * time.Duration(now.Second()))
 				now = now.Add(-time.Minute * time.Duration(now.Minute()))
 				now = now.Add(-time.Hour * time.Duration(now.Hour()))
@@ -140,10 +147,26 @@ func (j *Job) Init(now time.Time, interval time.Duration) (err error) {
 			err = errors.New("parse err")
 			return
 		}
-		j.everyName = r[2]
-		j.everyValue = v
+		switch r[2] {
+		case "second":
+			j.everyType = second
+		case "minute":
+			j.everyType = minute
+		case "hour":
+			j.everyType = hour
+		case "day":
+			j.everyType = day
+		case "month":
+			j.everyType = month
+		case "week":
+			j.everyType = week
+		default:
+			err = errors.New("parse err")
+			return
+		}
+		j.everyValue = uint8(v)
 	} else {
-		li := strings.Split(j.Spec, " ")
+		li := strings.Split(spec, " ")
 		if len(li) == 5 {
 			li = append([]string{"*"}, li...)
 		}
@@ -177,7 +200,7 @@ func (j *Job) Init(now time.Time, interval time.Duration) (err error) {
 							err = errors.New("parse err")
 							break LOOP1
 						}
-						if j.RunType == Divisibility {
+						if j.Divisibility {
 							now = now.Add(-time.Second * time.Duration(now.Second()%every))
 						}
 					} else if i == 1 {
@@ -185,7 +208,7 @@ func (j *Job) Init(now time.Time, interval time.Duration) (err error) {
 							err = errors.New("parse err")
 							break LOOP1
 						}
-						if j.RunType == Divisibility {
+						if j.Divisibility {
 							now = now.Add(-time.Second * time.Duration(now.Second()))
 							now = now.Add(-time.Minute * time.Duration(now.Minute()%every))
 						}
@@ -194,7 +217,7 @@ func (j *Job) Init(now time.Time, interval time.Duration) (err error) {
 							err = errors.New("parse err")
 							break LOOP1
 						}
-						if j.RunType == Divisibility {
+						if j.Divisibility {
 							now = now.Add(-time.Second * time.Duration(now.Second()))
 							now = now.Add(-time.Minute * time.Duration(now.Minute()))
 							now = now.Add(-time.Hour * time.Duration(now.Hour()%every))
@@ -204,7 +227,7 @@ func (j *Job) Init(now time.Time, interval time.Duration) (err error) {
 							err = errors.New("parse err")
 							break LOOP1
 						}
-						if j.RunType == Divisibility {
+						if j.Divisibility {
 							now = now.Add(-time.Second * time.Duration(now.Second()))
 							now = now.Add(-time.Minute * time.Duration(now.Minute()))
 							now = now.Add(-time.Hour * time.Duration(now.Hour()))
@@ -215,7 +238,7 @@ func (j *Job) Init(now time.Time, interval time.Duration) (err error) {
 							err = errors.New("parse err")
 							break LOOP1
 						}
-						if j.RunType == Divisibility {
+						if j.Divisibility {
 							now = now.Add(-time.Second * time.Duration(now.Second()))
 							now = now.Add(-time.Minute * time.Duration(now.Minute()))
 							now = now.Add(-time.Hour * time.Duration(now.Hour()))
@@ -230,7 +253,7 @@ func (j *Job) Init(now time.Time, interval time.Duration) (err error) {
 
 						// default run on sunday
 						// monday now = now.AddDate(0, 0, -int(now.Weekday())%7+1)
-						if j.RunType == Divisibility {
+						if j.Divisibility {
 							now = now.Add(-time.Second * time.Duration(now.Second()))
 							now = now.Add(-time.Minute * time.Duration(now.Minute()))
 							now = now.Add(-time.Hour * time.Duration(now.Hour()))
@@ -244,7 +267,7 @@ func (j *Job) Init(now time.Time, interval time.Duration) (err error) {
 					begin := parser[i].min
 					end := parser[i].max + 1
 					for ii := begin; ii < end; ii++ {
-						if j.RunType == Divisibility {
+						if j.Divisibility {
 							if ii%every == 0 {
 								list[i] |= 1 << ii
 							}
@@ -326,22 +349,22 @@ func (j *Job) Init(now time.Time, interval time.Duration) (err error) {
 	return
 }
 
-func (j *Job) Next(interval time.Duration) (slot int, err error) {
+func (j *Job) Next(interval time.Duration) (slot uint32, err error) {
 	now := j.nextTime
 	if j.everyValue > 0 {
-		switch j.everyName {
-		case "second":
+		switch j.everyType {
+		case second:
 			now = now.Add(time.Second * time.Duration(j.everyValue))
-		case "minute":
+		case minute:
 			now = now.Add(time.Minute * time.Duration(j.everyValue))
-		case "hour":
+		case hour:
 			now = now.Add(time.Hour * time.Duration(j.everyValue))
-		case "day":
-			now = now.AddDate(0, 0, j.everyValue)
-		case "month":
-			now = now.AddDate(0, j.everyValue, 0)
-		case "week":
-			now = now.AddDate(0, 0, 7*j.everyValue)
+		case day:
+			now = now.AddDate(0, 0, int(j.everyValue))
+		case month:
+			now = now.AddDate(0, int(j.everyValue), 0)
+		case week:
+			now = now.AddDate(0, 0, 7*int(j.everyValue))
 		}
 	} else {
 		now, err = j.clock.NextWithWeek()
@@ -354,12 +377,11 @@ func (j *Job) Next(interval time.Duration) (slot int, err error) {
 		now = time.Unix(now.Unix()-int64(now.Second()), 0)
 	}
 
-	if j.RunIfDelay {
-		if now.Sub(time.Now()) < interval {
+	if now.Sub(time.Now()) < interval {
+		if j.RunIfDelay {
 			now = time.Now().Add(interval)
-		}
-	} else {
-		if now.Sub(time.Now()) < interval {
+		} else {
+			j.nextTime = now
 			return j.Next(interval)
 		}
 	}
@@ -371,14 +393,14 @@ func (j *Job) Next(interval time.Duration) (slot int, err error) {
 	return
 }
 
-func GetSlotSinceYear(now time.Time, interval time.Duration) (slot int) {
+func GetSlotSinceYear(now time.Time, interval time.Duration) (slot uint32) {
 	year, _ := time.ParseInLocation("2006", now.Format("2006"), time.Local)
 	if interval == time.Minute {
-		slot = int(math.Floor(now.Sub(year).Minutes()))
+		slot = uint32(math.Floor(now.Sub(year).Minutes()))
 
 		return
 	}
-	slot = int(math.Floor(now.Sub(year).Seconds()))
+	slot = uint32(math.Floor(now.Sub(year).Seconds()))
 
 	return
 }

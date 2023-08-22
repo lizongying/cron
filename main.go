@@ -7,22 +7,18 @@ import (
 
 func main() {
 	logger := cron.NewLoggerStdout()
-	c := cron.New(cron.WithIntervalSecond())
-	for i := 0; i < 500000; i++ {
+	c := cron.New(cron.WithSecond())
+	for i := 0; i < 1000000; i++ {
 		v := i
-		c.MustAddJob(&cron.Job{
-			Spec: "*/3 * * * * *",
-			Meta: v,
-			Id:   v + 1,
-			Callback: func(id int, meta any) {
-				if id%500000 == 0 {
-					logger.Info(id, meta, time.Now())
+		c.MustAddJob("*/3 * * * * *", &cron.Job{
+			Callback: func() {
+				if (v+1)%1000000 == 0 {
+					logger.Info(v, time.Now())
 				}
 			},
 		})
 	}
 	logger.Info("now", time.Now())
 	c.MustStart()
-
 	select {}
 }

@@ -1,8 +1,12 @@
 package cron
 
 import (
+	"fmt"
 	"log"
 	"os"
+	"runtime"
+	"strconv"
+	"strings"
 )
 
 type Logger interface {
@@ -28,22 +32,30 @@ type LoggerStdout struct {
 
 func NewLoggerStdout() Logger {
 	return &LoggerStdout{
-		logger: log.New(os.Stdout, "", log.Ldate|log.Ltime|log.Llongfile),
+		logger: log.New(os.Stdout, "", log.Ldate|log.Ltime),
 	}
 }
 
 func (l *LoggerStdout) Info(v ...any) {
+	_, file, line, _ := runtime.Caller(1)
+	v = append([]any{strings.Join([]string{file, strconv.Itoa(line)}, ":")}, v...)
 	l.logger.Println(v...)
 }
 
 func (l *LoggerStdout) Infof(format string, v ...any) {
+	_, file, line, _ := runtime.Caller(1)
+	format = fmt.Sprintf("%s %s", strings.Join([]string{file, strconv.Itoa(line)}, ":"), format)
 	l.logger.Printf(format, v...)
 }
 
 func (l *LoggerStdout) Error(v ...any) {
+	_, file, line, _ := runtime.Caller(1)
+	v = append([]any{strings.Join([]string{file, strconv.Itoa(line)}, ":")}, v...)
 	l.logger.Println(v...)
 }
 
 func (l *LoggerStdout) Errorf(format string, v ...any) {
+	_, file, line, _ := runtime.Caller(1)
+	format = fmt.Sprintf("%s %s", strings.Join([]string{file, strconv.Itoa(line)}, ":"), format)
 	l.logger.Printf(format, v...)
 }

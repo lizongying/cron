@@ -8,13 +8,12 @@ import (
 func TestJob_Init(t *testing.T) {
 	now := time.Now()
 	t.Log(now)
-	job := Job{
-		Spec: "every 2 minutes",
-	}
-	err := job.Init(now, time.Minute)
-	if err != nil {
+	job := &Job{}
+	if err := job.Init("every 2 minutes", time.Minute); err != nil {
 		t.Log(err)
+		return
 	}
+
 	t.Log(job.nextTime)
 }
 
@@ -22,23 +21,20 @@ func TestJob_InitCrontab(t *testing.T) {
 	var err error
 	now := time.Now()
 	t.Log(now)
-	job := Job{
-		Spec: "* * * * * *",
-	}
-	//err := job.Init(now, time.Minute)
+	job := &Job{}
+	//err := job.Init("* * * * * *", time.Minute)
 	//if err != nil {
 	//	t.Log(err)
 	//}
 	//t.Logf("%+v", job)
 	//t.Log(job.nextTime)
 
-	job = Job{
-		Spec: "* 1-10 1,2,3 4 0-6",
-	}
-	err = job.Init(now, time.Minute)
-	if err != nil {
+	job = &Job{}
+	if err = job.Init("* 1-10 1,2,3 4 0-6", time.Minute); err != nil {
 		t.Log(err)
+		return
 	}
+
 	t.Log(job.nextTime)
 	_, err = job.Next(time.Minute)
 	if err != nil {
@@ -48,16 +44,22 @@ func TestJob_InitCrontab(t *testing.T) {
 }
 
 func TestJob_Next(t *testing.T) {
-	t.Log(time.Now())
-	job := Job{
-		Spec: "every 2 seconds",
+	var err error
+	now := time.Now()
+	t.Log(now)
+	job := &Job{}
+	if err = job.Init("every 2 seconds", time.Second); err != nil {
+		t.Log(err)
+		return
 	}
+
 	slot, err := job.Next(time.Second)
 	if err != nil {
 		t.Log(err)
 		return
 	}
-	t.Logf("%+v", slot)
+
+	t.Log("slot", slot)
 	t.Log(job.nextTime)
 }
 
