@@ -1,22 +1,6 @@
 package cron
 
-import (
-	"time"
-)
-
 type Options func(t *Cron)
-
-func WithSecond() Options {
-	return func(t *Cron) {
-		t.interval = time.Second
-	}
-}
-
-func WithMinute() Options {
-	return func(t *Cron) {
-		t.interval = time.Minute
-	}
-}
 
 func WithLogger(logger Logger) Options {
 	return func(t *Cron) {
@@ -30,8 +14,8 @@ func WithStdout() Options {
 	}
 }
 
-func WithDivisibility() Options {
+func WithFix() Options {
 	return func(t *Cron) {
-		t.divisibility = true
+		t.fix = true
 	}
 }
