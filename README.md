@@ -23,7 +23,7 @@ go get -u github.com/lizongying/cron@simple
 
 ### job method
 
-* 设定执行周期
+* 设定执行周期，必须设置。
 
 ```go
 EverySecond(v uint8) *Job
@@ -34,7 +34,7 @@ EveryMonth(v uint8) *Job
 EveryWeek(v uint8) *Job
 ```
 
-* 设定开始时间
+* 设定开始时间，非必须设置，如不设置，在cron开始后立即执行。
 ```go
 // 忽略错误
 MustSince(timeStr string) *Job
@@ -57,7 +57,7 @@ SinceTime(t time.Time) *Job
 
 ```
 
-* 设定回调函数
+* 设定回调函数，必须设置。
 
 ```go
 Callback(callback Callback) *Job
@@ -139,7 +139,7 @@ func main() {
 
 结论：和robfig/cron对比，相同数量任务，内存约为robfig/cron一半；任务容量（任务不超时最大数量）约为robfig/cron的四倍
 
-如果任务执行时间一直超过3分钟，可以认为到了最大容量
+如果任务执行时间一直超过3秒钟，可以认为到了最大容量
 
 robfig/cron
 
