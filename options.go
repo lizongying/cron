@@ -13,9 +13,3 @@ func WithStdout() Options {
 		t.logger = NewLoggerStdout()
 	}
 }
-
-func WithFix() Options {
-	return func(t *Cron) {
-		t.fix = true
-	}
-}

@@ -9,13 +9,11 @@ import (
 
 type Cron struct {
 	id          atomic.Uint32
-	ticker      *time.Ticker
 	jobs        map[uint32]*Job
 	stopChannel chan struct{}
 	running     bool
 	locker      sync.Mutex
 	logger      Logger
-	fix         bool
 }
 
 func New(options ...Options) (c *Cron) {
@@ -52,38 +50,31 @@ func (c *Cron) Start() (err error) {
 		return
 	}
 
-	now := time.Now()
-	unixNano := now.UnixNano()
-	var nextTime time.Time
-	if c.fix && unixNano > 0 {
-		nextTime = time.Unix(now.Unix(), 0).Add(time.Second)
-		time.Sleep(time.Duration(nextTime.UnixNano() - unixNano))
-	}
-
-	c.ticker = time.NewTicker(time.Second)
+	now := time.Unix(time.Now().Unix(), 0).Add(time.Second)
+	timer := time.NewTimer(now.Sub(time.Now()))
 
 	go func() {
-		timestamp := uint32(nextTime.Unix())
+		timestamp := uint32(now.Unix())
 		for _, job := range c.jobs {
 			if err = job.init(timestamp); err != nil {
 				c.logger.Error(err)
 				continue
 			}
-			if job.timestamp == timestamp {
-				go c.runJob(job)
-			}
 		}
 
 		for {
 			select {
-			case <-c.ticker.C:
-				timestamp++
+			case <-timer.C:
 				for _, job := range c.jobs {
 					if job.timestamp == timestamp {
 						go c.runJob(job)
 					}
 				}
+				timestamp++
+				now = now.Add(time.Second)
+				timer.Reset(now.Sub(time.Now()))
 			case <-c.stopChannel:
+				timer.Stop()
 				return
 			}
 		}
@@ -123,7 +114,6 @@ func (c *Cron) Stop() (err error) {
 		return
 	}
 
-	c.ticker.Stop()
 	close(c.stopChannel)
 
 	c.running = false

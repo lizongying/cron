@@ -14,8 +14,3 @@ func TestWithStdout(t *testing.T) {
 	c := New(WithStdout())
 	t.Log("logger", c.logger)
 }
-
-func TestWithFix(t *testing.T) {
-	c := New(WithStdout())
-	t.Log("fix", c.fix)
-}

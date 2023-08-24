@@ -1,17 +1,15 @@
 # Cron
 
 更简单的定时任务。
-支持秒级定时，可以修正执行时间，保证整秒的时候才执行，更准时。
-放弃crontab格式，可以指定何时开始执行，设置更方便。
-并发性能更高。
 
 [cron-simple](https://github.com/lizongying/cron/tree/simple)
 
 ## Features
 
-* 支持秒级定时，可以修正执行时间，保证整秒的时候才执行，更准时。
-* 放弃crontab格式，可以指定何时开始执行，设置更方便。
-* 并发性能更高。
+* 支持秒级定时，更准时。
+* 通过执行周期、何时开始执行设置，更方便。
+* 性能更高。
+* 占用资源更少。
 
 ## Install
 
@@ -35,6 +33,7 @@ EveryWeek(v uint8) *Job
 ```
 
 * 设定开始时间，非必须设置，如不设置，在cron开始后立即执行。
+
 ```go
 // 忽略错误
 MustSince(timeStr string) *Job
@@ -81,13 +80,6 @@ WithLogger(logger Logger) Options
 
 ```go
 WithStdout() Options
-```
-
-* 修正执行时间，会在整秒的时候才执行，所以初次执行会有不到一秒的延时
-
-```go
-WithFix() Options
-
 ```
 
 ### run
@@ -191,7 +183,7 @@ import (
 func main() {
 	num := 4000000
 	begin := time.Now()
-	c := cron.New(cron.WithFix())
+	c := cron.New()
 	for i := 1; i <= num; i++ {
 		v := i
 		_ = c.MustAddJob(new(cron.Job).
