@@ -41,9 +41,7 @@ func New(options ...Options) (c *Cron) {
 }
 
 func (c *Cron) MustStart() {
-	if err := c.Start(); err != nil {
-		c.logger.Error(err)
-	}
+	_ = c.Start()
 }
 
 func (c *Cron) Start() (err error) {
@@ -59,24 +57,20 @@ func (c *Cron) Start() (err error) {
 		return
 	}
 
+	now := time.Now()
+	var nextTime time.Time
+	if c.interval == time.Second {
+		nextTime = time.Unix(now.Unix(), 0).Add(time.Second)
+		time.Sleep(time.Duration(nextTime.UnixNano() - now.UnixNano()))
+	} else {
+		nextTime = time.Unix(now.Unix()-int64(now.Second()), 0).Add(time.Minute)
+		time.Sleep(time.Duration(nextTime.UnixNano() - now.UnixNano()))
+	}
+	now = nextTime
+	c.ticker = time.NewTicker(c.interval)
+
 	go func() {
-		defer func() {
-			c.logger.Info("stopped")
-		}()
-
 		c.lastMoment = LastMoment(c.interval)
-
-		now := time.Now()
-		var nextTime time.Time
-		if c.interval == time.Second {
-			nextTime = time.Unix(now.Unix(), 0).Add(time.Second)
-			time.Sleep(time.Duration(nextTime.UnixNano() - now.UnixNano()))
-		} else {
-			nextTime = time.Unix(now.Unix()-int64(now.Second()), 0).Add(time.Minute)
-			time.Sleep(time.Duration(nextTime.UnixNano() - now.UnixNano()))
-		}
-		now = nextTime
-		c.ticker = time.NewTicker(c.interval)
 
 		slot := SlotSinceYear(now, c.interval)
 		for _, job := range c.jobs {
@@ -136,9 +130,7 @@ func (c *Cron) runJob(job *Job) {
 }
 
 func (c *Cron) MustStop() {
-	if err := c.Stop(); err != nil {
-		c.logger.Error(err)
-	}
+	_ = c.Stop()
 }
 
 func (c *Cron) Stop() (err error) {

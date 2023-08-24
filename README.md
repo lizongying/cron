@@ -4,6 +4,9 @@
 
 [cron](https://github.com/lizongying/cron)
 
+如果没有crontab格式要求，建议使用simple版本，占用内存更少。
+[cron-simple](https://github.com/lizongying/cron/tree/simple)
+
 ## Features
 
 * 基于时间轮实现，更准时，并发性能更高。
@@ -63,7 +66,7 @@ WithDivisibility() Options
 package main
 
 import (
-	"github.com/lizongying/cron/cron"
+	"github.com/lizongying/cron"
 	"time"
 )
 
@@ -87,7 +90,7 @@ func main() {
 package main
 
 import (
-	"github.com/lizongying/cron/cron"
+	"github.com/lizongying/cron"
 )
 
 func main() {
@@ -99,7 +102,7 @@ func main() {
 
 ## Tips
 
-* 建议秒级别最大任务控制在5,000,000(Apple M1 Pro, 32 GB))以内，防止任务超时。可能支持更大数量，请自行测试。
-* 经测试，内存和并发性能均优于github.com/robfig/cron
+* 建议秒级别最大任务控制在4,000,000(Apple M1 Pro, 32 GB))以内，防止任务超时。可能支持更大数量，请自行测试。
+* 经测试，内存和并发性能均优于github.com/robfig/cron，可参考[cron-simple](https://github.com/lizongying/cron/tree/simple)
 
 ## TODO
