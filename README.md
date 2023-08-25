@@ -82,6 +82,36 @@ WithLogger(logger Logger) Options
 WithStdout() Options
 ```
 
+### cron method
+
+* 增加job
+
+```go
+MustAddJob(job *Job) (id uint32)
+AddJob(job *Job) (id uint32, err error)
+```
+
+* 删除job
+
+```go
+MustRemoveJob(id uint32)
+RemoveJob(id uint32) (err error)
+```
+
+* 修改job
+
+```go
+MustUpdateJob(id uint32, job *Job)
+UpdateJob(id uint32, job *Job) (err error)
+```
+
+* 查询job
+
+```go
+MustGetJob(id uint32) (job *Job)
+GetJob(id uint32) (job *Job, err error)
+```
+
 ### run
 
 ```go
@@ -125,13 +155,15 @@ func main() {
 
 ## Tips
 
-* 建议秒级别最大任务控制在4,000,000(Apple M1 Pro, 32 GB))以内，防止任务超时。可能支持更大数量，请自行测试。
+* 建议秒级别最大任务控制在1,000,000(Apple M1 Pro, 32 GB))以内，防止任务超时。可能支持更大数量，请自行测试。
 
 ## Performance
 
-结论：和robfig/cron对比，相同数量任务，内存约为robfig/cron一半；任务容量（任务不超时最大数量）约为robfig/cron的四倍
+结论：
 
-如果任务执行时间一直超过3秒钟，可以认为到了最大容量
+和robfig/cron对比，相同数量任务，内存约为robfig/cron一半；
+
+任务容量（任务不超时最大数量）约为robfig/cron的四倍
 
 robfig/cron
 
@@ -217,7 +249,11 @@ lizongying 4,000,000:
 
 ![lizongying 4,000,000](./screenshot/lizongying_4000000.png)
 
-robfig 2,000,000 robfig到了2,000,000就会出现任务超时情况:
+robfig 2,000,000:
+
+如果任务执行时间一直超过3秒钟，可以认为到了最大容量。
+
+robfig到了2,000,000就会出现任务超时情况。
 
 ![robfig 2,000,000](./screenshot/robfig_2000000.png)
 

@@ -9,25 +9,22 @@ import (
 
 type Cron struct {
 	id          atomic.Uint32
+	running     bool
 	jobs        map[uint32]*Job
 	stopChannel chan struct{}
-	running     bool
-	locker      sync.Mutex
 	logger      Logger
+	locker      sync.RWMutex
 }
 
 func New(options ...Options) (c *Cron) {
 	c = &Cron{
 		jobs:        make(map[uint32]*Job),
 		stopChannel: make(chan struct{}),
+		logger:      Logger(new(LoggerNothing)),
 	}
 
 	for _, v := range options {
 		v(c)
-	}
-
-	if c.logger == nil {
-		c.logger = Logger(&LoggerNothing{})
 	}
 
 	return
@@ -122,11 +119,7 @@ func (c *Cron) Stop() (err error) {
 }
 
 func (c *Cron) MustAddJob(job *Job) (id uint32) {
-	var err error
-	id, err = c.AddJob(job)
-	if err != nil {
-		c.logger.Error(err)
-	}
+	id, _ = c.AddJob(job)
 	return
 }
 
@@ -151,9 +144,7 @@ func (c *Cron) AddJob(job *Job) (id uint32, err error) {
 }
 
 func (c *Cron) MustRemoveJob(id uint32) {
-	if err := c.RemoveJob(id); err != nil {
-		c.logger.Error(err)
-	}
+	_ = c.RemoveJob(id)
 }
 
 func (c *Cron) RemoveJob(id uint32) (err error) {
@@ -171,12 +162,37 @@ func (c *Cron) RemoveJob(id uint32) (err error) {
 	return
 }
 
-func (c *Cron) MustGetJob(id uint32) (job *Job) {
-	var err error
-	job, err = c.GetJob(id)
-	if err != nil {
+func (c *Cron) MustUpdateJob(id uint32, job *Job) {
+	_ = c.UpdateJob(id, job)
+}
+
+func (c *Cron) UpdateJob(id uint32, job *Job) (err error) {
+	if c == nil {
+		err = errors.New("cron nil")
 		c.logger.Error(err)
+		return
 	}
+
+	if _, err = c.GetJob(id); err != nil {
+		err = errors.New("job not exists")
+		c.logger.Error(err)
+		return
+	}
+
+	c.locker.Lock()
+	defer c.locker.Unlock()
+
+	if err = job.init(uint32(time.Now().Unix())); err != nil {
+		c.logger.Error(err)
+		return
+	}
+	c.jobs[id] = job
+	c.logger.Info("job update success")
+	return
+}
+
+func (c *Cron) MustGetJob(id uint32) (job *Job) {
+	job, _ = c.GetJob(id)
 	return
 }
 
@@ -187,8 +203,8 @@ func (c *Cron) GetJob(id uint32) (job *Job, err error) {
 		return
 	}
 
-	c.locker.Lock()
-	defer c.locker.Unlock()
+	c.locker.RLock()
+	defer c.locker.RUnlock()
 
 	var ok bool
 	job, ok = c.jobs[id]

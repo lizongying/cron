@@ -64,17 +64,12 @@ func (j *Job) Callback(callback Callback) *Job {
 	return j
 }
 func (j *Job) MustSince(timeStr string) *Job {
-	_, err := j.Since(timeStr)
-	if err != nil {
+	if _, err := j.Since(timeStr); err != nil {
 		fmt.Println(err)
 	}
 	return j
 }
 func (j *Job) Since(timeStr string) (job *Job, err error) {
-	if timeStr == "" {
-		return
-	}
-
 	l := len(timeStr)
 	if l < 2 || l > 19 {
 		err = errors.New("timeStr too short or too long")
