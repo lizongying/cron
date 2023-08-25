@@ -52,17 +52,15 @@ func (c *Cron) Start() (err error) {
 
 	go func() {
 		timestamp := uint32(now.Unix())
-		for _, job := range c.jobs {
-			if err = job.init(timestamp); err != nil {
-				c.logger.Error(err)
-				continue
-			}
-		}
 
 		for {
 			select {
 			case <-timer.C:
 				for _, job := range c.jobs {
+					if err = job.init(timestamp); err != nil {
+						c.logger.Error(err)
+						continue
+					}
 					if job.timestamp == timestamp {
 						go c.runJob(job)
 					}
@@ -179,13 +177,14 @@ func (c *Cron) UpdateJob(id uint32, job *Job) (err error) {
 		return
 	}
 
-	c.locker.Lock()
-	defer c.locker.Unlock()
-
 	if err = job.init(uint32(time.Now().Unix())); err != nil {
 		c.logger.Error(err)
 		return
 	}
+
+	c.locker.Lock()
+	defer c.locker.Unlock()
+
 	c.jobs[id] = job
 	c.logger.Info("job update success")
 	return
