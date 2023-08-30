@@ -1,6 +1,7 @@
 package cron
 
 import (
+	"github.com/lizongying/gooptimizer"
 	"testing"
 	"time"
 )
@@ -40,4 +41,8 @@ func TestJob_Next(t *testing.T) {
 	job.next()
 
 	t.Log(job.NextTime())
+}
+
+func TestJob_Optimize(t *testing.T) {
+	gooptimizer.StructAlignWithPrint(new(Job))
 }

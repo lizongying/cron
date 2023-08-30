@@ -1,6 +1,7 @@
 package cron
 
 import (
+	"github.com/lizongying/gooptimizer"
 	"testing"
 	"time"
 )
@@ -60,4 +61,8 @@ func TestCron_Restart(t *testing.T) {
 	c.MustStart()
 	c.MustStop()
 	c.MustStart()
+}
+
+func TestCron_Optimize(t *testing.T) {
+	gooptimizer.StructAlignWithPrint(new(Cron))
 }

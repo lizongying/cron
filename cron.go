@@ -7,13 +7,21 @@ import (
 	"time"
 )
 
+type Save struct {
+	Id  uint32
+	Job *Job
+}
+
 type Cron struct {
-	id          atomic.Uint32
 	running     bool
+	id          atomic.Uint32
+	locker      sync.RWMutex
 	jobs        map[uint32]*Job
 	stopChannel chan struct{}
 	logger      Logger
-	locker      sync.RWMutex
+
+	removeChannel chan uint32
+	saveChannel   chan Save
 }
 
 func New(options ...Options) (c *Cron) {
@@ -21,6 +29,9 @@ func New(options ...Options) (c *Cron) {
 		jobs:        make(map[uint32]*Job),
 		stopChannel: make(chan struct{}),
 		logger:      Logger(new(LoggerNothing)),
+
+		removeChannel: make(chan uint32),
+		saveChannel:   make(chan Save),
 	}
 
 	for _, v := range options {
@@ -47,27 +58,162 @@ func (c *Cron) Start() (err error) {
 		return
 	}
 
-	now := time.Unix(time.Now().Unix(), 0).Add(time.Second)
-	timer := time.NewTimer(now.Sub(time.Now()))
+	timer := time.NewTimer(time.Hour * 24 * 365)
+	jobs := make(map[uint32]*Job)
+	var now time.Time
+	var nextTime time.Time
+
+	timestamp := uint32(time.Now().Unix() + 1)
+	for _, job := range jobs {
+		if err = job.init(timestamp); err != nil {
+			c.logger.Error(err)
+			continue
+		}
+	}
+	for id, job := range c.jobs {
+		if err = job.init(timestamp); err != nil {
+			c.logger.Error(err)
+			continue
+		}
+
+		if len(jobs) != 0 {
+			timestamp = job.timestamp
+			jobs[id] = job
+			continue
+		}
+		if job.timestamp < timestamp {
+			timestamp = job.timestamp
+			jobs = make(map[uint32]*Job)
+			jobs[id] = job
+			continue
+		}
+		if job.timestamp == timestamp {
+			jobs[id] = job
+		}
+	}
+
+	if len(jobs) != 0 {
+		now = time.Now()
+		nextTime = time.Unix(int64(timestamp), 0)
+		if nextTime.After(now) {
+			timer.Reset(nextTime.Sub(now))
+		} else {
+			timer.Reset(0)
+		}
+	}
 
 	go func() {
-		timestamp := uint32(now.Unix())
-
 		for {
 			select {
 			case <-timer.C:
-				for _, job := range c.jobs {
-					if err = job.init(timestamp); err != nil {
-						c.logger.Error(err)
+				for _, job := range jobs {
+					go c.runJob(job)
+				}
+				for _, job := range jobs {
+					job.next()
+				}
+
+				jobs = make(map[uint32]*Job)
+				for id, job := range c.jobs {
+					if len(jobs) == 0 {
+						timestamp = job.timestamp
+						jobs[id] = job
+						continue
+					}
+					if job.timestamp < timestamp {
+						timestamp = job.timestamp
+						jobs = make(map[uint32]*Job)
+						jobs[id] = job
 						continue
 					}
 					if job.timestamp == timestamp {
-						go c.runJob(job)
+						jobs[id] = job
 					}
 				}
-				timestamp++
-				now = now.Add(time.Second)
-				timer.Reset(now.Sub(time.Now()))
+
+				if len(jobs) == 0 {
+					continue
+				}
+
+				now = time.Now()
+				nextTime = time.Unix(int64(timestamp), 0)
+				if nextTime.After(now) {
+					timer.Reset(nextTime.Sub(now))
+				} else {
+					timer.Reset(0)
+				}
+			case save := <-c.saveChannel:
+				id := save.Id
+				job := save.Job
+				if err = job.init(timestamp); err != nil {
+					c.logger.Error(err)
+					continue
+				}
+				c.locker.Lock()
+				c.jobs[id] = job
+				c.locker.Unlock()
+
+				if len(jobs) == 0 {
+					timestamp = job.timestamp
+					jobs[id] = job
+				}
+				if job.timestamp < timestamp {
+					timestamp = job.timestamp
+					jobs = make(map[uint32]*Job)
+					jobs[id] = job
+				}
+				if job.timestamp == timestamp {
+					jobs[id] = job
+				}
+
+				if len(jobs) == 0 {
+					continue
+				}
+
+				now = time.Now()
+				nextTime = time.Unix(int64(timestamp), 0)
+				if nextTime.After(now) {
+					timer.Reset(nextTime.Sub(now))
+				} else {
+					timer.Reset(0)
+				}
+			case id := <-c.removeChannel:
+				c.locker.Lock()
+				delete(c.jobs, id)
+				c.locker.Unlock()
+
+				delete(jobs, id)
+
+				if len(jobs) == 0 {
+					for id, job := range c.jobs {
+						if len(jobs) == 0 {
+							timestamp = job.timestamp
+							jobs[id] = job
+							continue
+						}
+						if job.timestamp < timestamp {
+							timestamp = job.timestamp
+							jobs = make(map[uint32]*Job)
+							jobs[id] = job
+							continue
+						}
+						if job.timestamp == timestamp {
+							jobs[id] = job
+						}
+					}
+
+					if len(jobs) == 0 {
+						continue
+					}
+
+					now = time.Now()
+					nextTime = time.Unix(int64(timestamp), 0)
+					if nextTime.After(now) {
+						timer.Reset(nextTime.Sub(now))
+					} else {
+						timer.Reset(0)
+					}
+				}
 			case <-c.stopChannel:
 				timer.Stop()
 				return
@@ -86,8 +232,6 @@ func (c *Cron) runJob(job *Job) {
 			c.logger.Error("job run err:", err)
 		}
 	}()
-
-	go job.next()
 
 	job.callback()
 }
@@ -128,16 +272,12 @@ func (c *Cron) AddJob(job *Job) (id uint32, err error) {
 		return
 	}
 
-	if err = job.init(uint32(time.Now().Unix())); err != nil {
-		c.logger.Error(err)
-		return
-	}
-
-	c.locker.Lock()
-	defer c.locker.Unlock()
-
-	c.jobs[c.id.Load()] = job
 	c.id.Add(1)
+	id = c.id.Load()
+	c.saveChannel <- Save{
+		Id:  id,
+		Job: job,
+	}
 	return
 }
 
@@ -152,11 +292,13 @@ func (c *Cron) RemoveJob(id uint32) (err error) {
 		return
 	}
 
-	c.locker.Lock()
-	defer c.locker.Unlock()
+	if id == 0 {
+		err = errors.New("id zero")
+		c.logger.Error(err)
+		return
+	}
 
-	delete(c.jobs, id)
-	c.logger.Info("job remove success")
+	c.removeChannel <- id
 	return
 }
 
@@ -171,22 +313,10 @@ func (c *Cron) UpdateJob(id uint32, job *Job) (err error) {
 		return
 	}
 
-	if _, err = c.GetJob(id); err != nil {
-		err = errors.New("job not exists")
-		c.logger.Error(err)
-		return
+	c.saveChannel <- Save{
+		Id:  id,
+		Job: job,
 	}
-
-	if err = job.init(uint32(time.Now().Unix())); err != nil {
-		c.logger.Error(err)
-		return
-	}
-
-	c.locker.Lock()
-	defer c.locker.Unlock()
-
-	c.jobs[id] = job
-	c.logger.Info("job update success")
 	return
 }
 

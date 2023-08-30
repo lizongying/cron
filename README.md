@@ -3,6 +3,9 @@
 更简单的定时任务。
 
 [cron-simple](https://github.com/lizongying/cron/tree/simple)
+[cron-simple-v2](https://github.com/lizongying/cron/tree/simple_v2)
+
+cron-simple-v2: 降低cpu使用率
 
 ## Features
 
@@ -124,6 +127,7 @@ import (
 func main() {
 	logger := cron.NewLoggerStdout()
 	c := cron.New(cron.WithStdout())
+	c.MustStart()
 	id := c.MustAddJob(new(cron.Job).
 		EverySecond(10).
 		MustSince("10:15").
@@ -131,7 +135,6 @@ func main() {
 			logger.Info("callback")
 		}))
 	logger.Info("id", id)
-	c.MustStart()
 	select {}
 }
 
@@ -181,6 +184,7 @@ func main() {
 	num := 1000000
 	begin := time.Now()
 	c := cron.New(cron.WithSeconds())
+	c.Start()
 	for i := 1; i <= num; i++ {
 		v := i
 		_, _ = c.AddFunc("@every 3s", func() {
@@ -193,7 +197,6 @@ func main() {
 			}
 		})
 	}
-	c.Start()
 	log.Println("now", begin)
 	select {}
 }
@@ -216,6 +219,7 @@ func main() {
 	num := 4000000
 	begin := time.Now()
 	c := cron.New()
+	c.MustStart()
 	for i := 1; i <= num; i++ {
 		v := i
 		_ = c.MustAddJob(new(cron.Job).
@@ -230,7 +234,6 @@ func main() {
 				}
 			}))
 	}
-	c.MustStart()
 	log.Println("num", num)
 	select {}
 }

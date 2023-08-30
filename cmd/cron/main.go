@@ -8,23 +8,24 @@ import (
 	"time"
 )
 
-func main0() {
+func main() {
 	logger := cron.NewLoggerStdout()
-	c := cron.New()
+	c := cron.New(cron.WithStdout())
+	c.MustStart()
 	id := c.MustAddJob(new(cron.Job).
 		EverySecond(3).
 		Callback(func() {
 			fmt.Println(time.Now())
 		}))
 	logger.Info("id", id)
-	c.MustStart()
 	select {}
 }
 
-func main() {
+func main1() {
 	num := 4000000
 	begin := time.Now()
 	c := cron.New()
+	c.MustStart()
 	for i := 1; i <= num; i++ {
 		v := i
 		_ = c.MustAddJob(new(cron.Job).
@@ -39,7 +40,6 @@ func main() {
 				}
 			}))
 	}
-	c.MustStart()
 	log.Println("num", num)
 	select {}
 }
