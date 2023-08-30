@@ -5,6 +5,7 @@
 [cron-simple](https://github.com/lizongying/cron/tree/simple)
 [cron-simple-v2](https://github.com/lizongying/cron/tree/simple_v2)
 
+cron-simple: 降低内存使用率
 cron-simple-v2: 降低cpu使用率
 
 ## Features
@@ -17,7 +18,7 @@ cron-simple-v2: 降低cpu使用率
 ## Install
 
 ```shell
-go get -u github.com/lizongying/cron@simple
+go get -u github.com/lizongying/cron@simple-v2
 ```
 
 ## Usage
