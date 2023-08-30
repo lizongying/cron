@@ -3,6 +3,9 @@ package cron
 import (
 	"errors"
 	"fmt"
+	"regexp"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -28,6 +31,37 @@ type Job struct {
 
 func (j *Job) NextTime() time.Time {
 	return time.Unix(int64(j.timestamp), 0)
+}
+func (j *Job) MustEverySpec(s string) *Job {
+	if err := j.EverySpec(s); err != nil {
+		fmt.Println(err)
+	}
+	return j
+}
+func (j *Job) EverySpec(s string) (err error) {
+	r := regexp.MustCompile(`(?i)(\d+)([sihdmw])`).FindStringSubmatch(s)
+	if len(r) != 3 {
+		err = errors.New("parse error")
+		return
+	}
+
+	num, _ := strconv.Atoi(r[1])
+	everyU8 := uint8(num)
+	switch strings.ToUpper(r[2]) {
+	case "S":
+		j.EverySecond(everyU8)
+	case "I":
+		j.EveryMinute(everyU8)
+	case "H":
+		j.EveryHour(everyU8)
+	case "D":
+		j.EveryDay(everyU8)
+	case "M":
+		j.EveryMonth(everyU8)
+	case "W":
+		j.EveryWeek(everyU8)
+	}
+	return
 }
 func (j *Job) EverySecond(v uint8) *Job {
 	j.everyType = second
@@ -64,12 +98,12 @@ func (j *Job) Callback(callback Callback) *Job {
 	return j
 }
 func (j *Job) MustSince(timeStr string) *Job {
-	if _, err := j.Since(timeStr); err != nil {
+	if err := j.Since(timeStr); err != nil {
 		fmt.Println(err)
 	}
 	return j
 }
-func (j *Job) Since(timeStr string) (job *Job, err error) {
+func (j *Job) Since(timeStr string) (err error) {
 	l := len(timeStr)
 	if l < 2 || l > 19 {
 		err = errors.New("timeStr too short or too long")
@@ -83,7 +117,6 @@ func (j *Job) Since(timeStr string) (job *Job, err error) {
 	}
 
 	j.SinceTime(t)
-	job = j
 	return
 }
 func (j *Job) SinceTime(t time.Time) *Job {

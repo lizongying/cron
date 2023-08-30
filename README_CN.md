@@ -1,35 +1,35 @@
 # Cron
 
-Simpler scheduling for tasks.
+更简单的定时任务。
 
 [cron-simple](https://github.com/lizongying/cron/tree/simple)
 [cron-simple-v2](https://github.com/lizongying/cron/tree/simple_v2)
-[中文](./README_CN.md)
+[english](./README.md)
 
-cron-simple: Reducing memory usage.
-cron-simple-v2: Reducing CPU usage.
+cron-simple: 降低内存使用率
+cron-simple-v2: 降低cpu使用率
 
-## Features
+## 特性
 
-* Supports second-level timing for more precise scheduling.
-* Configurable through execution intervals and start times for added convenience.
-* Improved performance.
-* Minimal resource footprint.
+* 支持秒级定时，更准时。
+* 通过执行周期、何时开始执行设置，更方便。
+* 性能更高。
+* 占用资源更少。
 
-## Install
+## 安装
 
 ```shell
 go get -u github.com/lizongying/cron@simple-v2
 ```
 
-## Usage
+## 使用
 
 ### job method
 
-* Setting an execution interval is mandatory.
+* 设定执行周期，必须设置。
 
 ```go
-// Ignoring errors.
+// 忽略错误
 MustEverySpec(spec string) *Job
 
 // 1s/2i/3h/4d/5m/6w
@@ -42,38 +42,38 @@ EveryMonth(v uint8) *Job
 EveryWeek(v uint8) *Job
 ```
 
-* Setting a start time is optional. If not set, the execution will take place immediately after the cron starts.
+* 设定开始时间，非必须设置，如不设置，在cron开始后立即执行。
 
 ```go
-// Ignoring errors.
+// 忽略错误
 MustSince(timeStr string) *Job
 
-// Setting the start time based on a time string
-// For example, scheduling at 04:05 with an interval of 5 minutes.
-// If the current time is 03:06, execution will begin at 04:05.
-// If the current time is 05:02, execution will begin at 09:05.
-// Formats:
+// 根据时间字符串，设定开始时间
+// 比如定时04:05，每5分钟执行一次。
+// 若当前时间03:06，会在04分05秒开始执行；
+// 若当前时间05:02，会在09分05秒开始执行。
+// 格式:
 // - 2006-01-02 15:04:05
 // - 01-02 15:04:05
 // - 02 15:04:05
 // - 15:04:05
 // - 04:05
 // - 05
-// Unspecified parts are filled with the current time.
+// 未设置部分以当前时间填充
 Since(timeStr string) error
 
-// Directly setting the start time.
+// 直接设置开始时间
 SinceTime(t time.Time) *Job
 
 ```
 
-* Setting a callback function is mandatory.
+* 设定回调函数，必须设置。
 
 ```go
 Callback(callback Callback) *Job
 ```
 
-* Getting the next execution time.
+* 获取下次执行时间。
 
 ```go
 NextTime() time.Time
@@ -81,7 +81,7 @@ NextTime() time.Time
 
 ### cron options
 
-* Logging output to the console.
+* 使用自定义日志
 
 ```go
 WithLogger(logger Logger) Options
@@ -95,35 +95,35 @@ WithStdout() Options
 
 ### cron method
 
-* Adding a job.
+* 增加job
 
 ```go
 MustAddJob(job *Job) (id uint32)
 AddJob(job *Job) (id uint32, err error)
 ```
 
-* Deleting a job.
+* 删除job
 
 ```go
 MustRemoveJob(id uint32)
 RemoveJob(id uint32) (err error)
 ```
 
-* Modifying a job.
+* 修改job
 
 ```go
 MustUpdateJob(id uint32, job *Job)
 UpdateJob(id uint32, job *Job) (err error)
 ```
 
-* Querying a job.
+* 查询job
 
 ```go
 MustGetJob(id uint32) (job *Job)
 GetJob(id uint32) (job *Job, err error)
 ```
 
-### run
+### 运行
 
 ```go
 package main
@@ -148,7 +148,7 @@ func main() {
 
 ```
 
-### stop
+### 停止
 
 ```go
 package main
@@ -164,19 +164,17 @@ func main() {
 
 ```
 
-## Tips
+## 提示
 
-* It is recommended to keep the maximum number of second-level tasks within 1,000,000 (for Apple M1 Pro, 32 GB) to
-  prevent task timeouts. It might be possible to support a larger quantity, but it's advised to conduct your own
-  testing.
+* 建议秒级别最大任务控制在1,000,000(Apple M1 Pro, 32 GB))以内，防止任务超时。可能支持更大数量，请自行测试。
 
-## Performance
+## 性能
 
-Conclusion:
+结论：
 
-Compared to robfig/cron, with the same number of tasks, the memory usage is approximately half.
+和robfig/cron对比，相同数量任务，内存约为robfig/cron一半；
 
-The task capacity (maximum number of tasks without timeouts) is approximately four times that of robfig/cron.
+任务容量（任务不超时最大数量）约为robfig/cron的四倍
 
 robfig/cron
 
@@ -264,9 +262,9 @@ lizongying 4,000,000:
 
 robfig 2,000,000:
 
-If the task execution consistently exceeds 3 seconds, it can be considered reaching the maximum capacity.
+如果任务执行时间一直超过3秒钟，可以认为到了最大容量。
 
-For robfig/cron, task timeouts start occurring around 2,000,000 tasks.
+robfig到了2,000,000就会出现任务超时情况。
 
 ![robfig 2,000,000](./screenshot/robfig_2000000.png)
 

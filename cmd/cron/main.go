@@ -13,7 +13,7 @@ func main() {
 	c := cron.New(cron.WithStdout())
 	c.MustStart()
 	id := c.MustAddJob(new(cron.Job).
-		EverySecond(3).
+		MustEverySpec("3s").
 		Callback(func() {
 			fmt.Println(time.Now())
 		}))
