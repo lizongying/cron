@@ -2,12 +2,11 @@
 
 更简单的定时任务。
 
-[cron-simple](https://github.com/lizongying/cron/tree/simple)
-[cron-simple-v2](https://github.com/lizongying/cron/tree/simple_v2)
+[cron](https://github.com/lizongying/cron/)
+[cron-simple-v2](https://github.com/lizongying/cron/tree/simple_v2/)
 [english](./README.md)
 
-cron-simple: 降低内存使用率
-cron-simple-v2: 降低cpu使用率
+cron-simple-v2: 去掉了对crontab格式的支持，使用更简单。同时降低内存和cpu使用率。建议使用此分支。
 
 ## 特性
 

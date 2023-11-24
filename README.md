@@ -2,12 +2,11 @@
 
 Simpler scheduling for tasks.
 
-[cron-simple](https://github.com/lizongying/cron/tree/simple)
-[cron-simple-v2](https://github.com/lizongying/cron/tree/simple_v2)
+[cron](https://github.com/lizongying/cron/)
+[cron-simple-v2](https://github.com/lizongying/cron/tree/simple_v2/)
 [中文](./README_CN.md)
 
-cron-simple: Reducing memory usage.
-cron-simple-v2: Reducing CPU usage.
+cron-simple-v2: Removed support for the crontab format, opting for a simpler approach. Additionally, reduced memory and CPU usage. It is recommended to use this branch.
 
 ## Features
 
