@@ -5,7 +5,7 @@
 [cron](https://github.com/lizongying/cron)
 
 如果没有crontab格式要求，建议使用simple版本，占用内存更少。
-[cron-simple](https://github.com/lizongying/cron/tree/simple)
+[cron-simple-v2](https://github.com/lizongying/cron/tree/simple-v2)
 
 ## Features
 
