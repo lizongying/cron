@@ -2,7 +2,7 @@
 
 更简单的定时任务。
 
-[cron-simple](https://github.com/lizongying/cron/tree/simple)
+此分支不再更新，请使用 [cron-simple-v2](https://github.com/lizongying/cron/tree/simple-v2/)
 
 ## Features
 
