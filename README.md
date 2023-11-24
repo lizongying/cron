@@ -7,6 +7,8 @@
 如果没有crontab格式要求，建议使用simple版本，占用内存更少。
 [cron-simple-v2](https://github.com/lizongying/cron/tree/simple-v2)
 
+注意：[v1.0.0](https://github.com/lizongying/cron/releases/tag/v1.0.0) 是基于cron-simple-v2
+
 ## Features
 
 * 基于时间轮实现，更准时，并发性能更高。
